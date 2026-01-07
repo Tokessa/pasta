@@ -84,6 +84,8 @@ export class ContextTable extends Table {
         });
     }
 
+    protected __mergeListenersInitialized = false;
+
     protected handleMessages(message: any): void {
         const action = message.data.action;
         if (action) {
@@ -116,6 +118,7 @@ export class ContextTable extends Table {
         if (table) {
             const newTable = createTable(this.tableId);
             patch(table, newTable);
+            this.mergeNoCellsVisuals(document.getElementById(this.tableId) as HTMLTableElement);
         }
     }
 
@@ -313,6 +316,24 @@ export class ContextTable extends Table {
                 // table is empty
                 this.addRow(table, { variables: [], results: [] }, "empty-table");
             }
+            this.mergeNoCellsVisuals(table);
+
+            // initialize one-time listeners (resize / container scroll) to keep overlays synced on viewport changes
+            if (!this.__mergeListenersInitialized) {
+                // window resize
+                window.addEventListener("resize", () => {
+                    const t = document.getElementById(this.tableId) as HTMLTableElement | null;
+                    if (t) this.mergeNoCellsVisuals(t);
+                }, { passive: true });
+
+                // container scroll (table is enclosed by a div.contextTable — overlay is appended to that container)
+                const container = table.parentElement as HTMLElement | null;
+                if (container) {
+                    container.addEventListener("scroll", () => this.mergeNoCellsVisuals(table), { passive: true });
+                }
+
+                this.__mergeListenersInitialized = true;
+            }
         }
     }
 
@@ -366,6 +387,20 @@ export class ContextTable extends Table {
     }
 
     /**
+     * Get all the process variables of a row of the context table
+     */
+    protected getRowData(target: HTMLElement): string[] {
+        const children = target.parentNode?.children;
+        let processVars: string[] = [];
+        if (children) {
+            for (let child of Array.from(children)) {
+                processVars.push(child.textContent)
+            }
+        }
+        return processVars;
+    } 
+
+    /**
      * Creates and appends one non-header row to the table.
      * @param table The HTMLTableElement to apply the row to.
      * @param row The row to add.
@@ -374,28 +409,50 @@ export class ContextTable extends Table {
     protected addRow(table: HTMLTableElement, row: Row, id: string): void {
         // create row placeholder
         const placeholderRow = document.createElement("tr");
-        placeholderRow.addEventListener("input", event => {
-            if ((event as InputEvent).inputType === "insertParagraph") {
-                // if the user edits a cell, the value must be sent to the backend
-                const target = event.target as HTMLElement;
-                const cellValue = target.textContent || "";
-                const colSpan = parseInt(target.getAttribute("colspan") || "1", 10);
-                const previousSibling = target.previousSibling as HTMLElement; 
-                vscode.postMessage({
-                    action: "updateCell",
-                    data: { id: row.variables.map(v => v.name).join("_"), value: cellValue, colSpan }
-                });
-            } else if ((event as InputEvent).inputType === "insertText" && (event as InputEvent).data === ",") {
+        placeholderRow.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+            ev.preventDefault(); // stop newline insertion
+            const target = ev.target as HTMLElement;
+            const cellValue = target.textContent || "";
+            const colSpan = parseInt(target.getAttribute("colspan") || "1", 10);
+            this.getRowData(target); // all data of selected row
+            this.selectedType; // currently selected type
+            this.selectedControlAction; // currently selected control action with controler
+            this.currentVariables; // process var names with options
+            console.log(row.variables.map(v => v.name).join("_"));
+            // send updated value to backend
+            vscode.postMessage({
+            action: "updateCell",
+            data: { id: row.variables.map(v => v.name).join("_"), value: cellValue, colSpan }
+            });
 
-            }
+            // remove focus from the cell so the user "leaves" it
+            target.blur();
+        }
         });
+        //     "input", event => {
+        //     if ((event as InputEvent).inputType === "insertParagraph") {
+        //         // if the user edits a cell, the value must be sent to the backend
+        //         const target = event.target as HTMLElement;
+        //         const cellValue = target.textContent || "";
+        //         const colSpan = parseInt(target.getAttribute("colspan") || "1", 10);
+        //         const previousSibling = target.previousSibling as HTMLElement; 
+        //         this.getRowData(target);
+        //         vscode.postMessage({
+        //             action: "updateCell",
+        //             data: { id: row.variables.map(v => v.name).join("_"), value: cellValue, colSpan }
+        //         });
+        //     } else if ((event as InputEvent).inputType === "insertText" && (event as InputEvent).data === ",") {
+
+        //     }
+        // });
         table.appendChild(placeholderRow);
 
         let cells: ContextCell[] = [];
         if (row.variables.length > 0) {
             // values of the context variables
             cells = row.variables.map(variable => {
-                return { cssClass: "context-variable", value: variable.value, colSpan: 1, editable: false };
+                return { cssClass: "context-variable", value: variable.value, colSpan: 1};
             });
             // append the result cells
             cells = cells.concat(createResults(row.results));
@@ -413,12 +470,92 @@ export class ContextTable extends Table {
                     colSpan = 4;
                     break;
             }
-            cells.push({ cssClass: "result", value: "No", colSpan: colSpan, editable: true });
+            // cells.push({ cssClass: "result", value: "No", colSpan: colSpan});
+
+            // Create one cell per result column. To visually merge them when empty
+            // we give them the 'result-no' class and put "No" only in the first of the run.
+            for (let k = 0; k < colSpan; k++) {
+                const posClass =  colSpan === 1 ? 'result-no-start-end' : ((k === 0) ? "result-no-start" : ((k === colSpan - 1) ? 'result-no-end' : 'result-no-mid'));
+                cells.push({
+                    cssClass: posClass,
+                    value: "No",
+                    colSpan: 1
+                });
+            }
         }
 
         // create the row
         const htmlRow = createRow(id, cells);
         patch(placeholderRow, htmlRow);
+    }
+
+     /**
+     * After the table DOM has been patched, this function visually merges contiguous
+     * result-no cells by:
+     *  - marking start/mid/end classes so border CSS can be applied only on group edges
+     *  - creating one absolutely-positioned overlay element that displays a single
+     *    centered "No" across the whole run
+     *
+     * Call this once the table has been fully rendered/updated.
+     */
+    protected mergeNoCellsVisuals(table: HTMLTableElement): void {
+        const container = table.parentElement as HTMLElement;
+        if (!container) return;
+        if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+
+        // remove previous overlays
+        container.querySelectorAll('.result-no-overlay').forEach(o => o.remove());
+
+        // clear any previous inline color on result-no cells
+        table.querySelectorAll('td').forEach(td => {
+            const cls = td.className || '';
+            if (cls.startsWith('result-no')) {
+                (td as HTMLElement).style.color = '';
+            }
+        });
+
+        // iterate only run starts (cheap)
+        const starts = table.querySelectorAll('td.result-no-start, td.result-no-start-end');
+        starts.forEach(startCell => {
+            // discover run by walking nextElementSibling while sibling.className startsWith 'result-no'
+            const row = startCell.parentElement as HTMLTableRowElement;
+            let lastCell: Element = startCell;
+            let runCells: HTMLElement[] = [startCell as HTMLElement];
+
+            let next = startCell.nextElementSibling;
+            while (next && (next as HTMLElement).className && (next as HTMLElement).className.startsWith('result-no')) {
+                runCells.push(next as HTMLElement);
+                lastCell = next;
+                next = next.nextElementSibling;
+            }
+
+            // hide underlying visible text for the run (keep textContent "No" for click logic)
+            runCells.forEach(td => (td as HTMLElement).style.color = 'transparent');
+
+            // measure using offset positions relative to the container (more stable than viewport arithmetic)
+            // We want left/top in container-local coordinates (pixels inside container)
+            const firstOffsetLeft = (startCell as HTMLElement).offsetLeft;
+            // const firstOffsetTop = (startCell as HTMLElement).offsetTop;
+            const firstHeight = (startCell as HTMLElement).offsetHeight;
+            const lastRight = (lastCell as HTMLElement).offsetLeft + (lastCell as HTMLElement).offsetWidth;
+            const width = lastRight - firstOffsetLeft;
+            const height = firstHeight;
+            const left = firstOffsetLeft;
+            // Row top as offsetTop of the row's first cell (row offsetTop is fine), but ensure to use the cell's offsetTop for row positioning
+            const top = (row.firstElementChild as HTMLElement).offsetTop;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'result-no-overlay';
+            overlay.style.position = 'absolute';
+            overlay.style.left = `${left}px`;
+            overlay.style.top = `${top}px`;
+            overlay.style.width = `${width}px`;
+            overlay.style.height = `${height}px`;
+            overlay.style.pointerEvents = 'none';
+            overlay.style.zIndex = '1';
+            overlay.innerText = 'No';
+            container.appendChild(overlay);
+        });
     }
 
     /**

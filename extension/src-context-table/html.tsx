@@ -139,10 +139,47 @@ export function createRow(id: string, values: ContextCell[]): VNode {
     for (const val of values) {
         const classes: Classes = {};
         classes[val.cssClass] = true;
+
+        // prepare attributes for the td (colspan, optional title)
+        const tdAttrs: any = { colspan: val.colSpan };
         if (val.title) {
-            children.push(<td class={classes} attrs={{ colspan: val.colSpan, title: val.title, contenteditable: val.editable }}>{val.value}</td>);
+            tdAttrs.title = val.title;
+        }
+
+        // Render a small plus button for every "result" cell (these are the Hazardous? columns).
+        if (val.cssClass.startsWith("result")) {
+            children.push(
+                <td class={classes} attrs={tdAttrs}>
+                    <div class={{ resultCell: true }}>
+                        <pre>{val.value}</pre>
+                        <button
+                            class={{ "result-plus": true }}
+                            attrs={{ type: "button", title: "Hazardous actions", "aria-label": "Hazardous actions" }}
+                            on={{
+                                click: (e: Event) => {
+                                    // Prevent row-level handlers from being triggered
+                                    e.stopPropagation();
+                                    // TODO: implement the actual behavior here.
+                                    // Typical implementations: postMessage to extension host,
+                                    // open an in-webview modal/panel, expand inline details, ...
+                                    // For now we log so that click can be tested.
+                                    // eslint-disable-next-line no-console
+                                    console.log("[TODO] Hazardous plus clicked for result cell:", val.title || val.value);
+                                },
+                            }}
+                        >
+                            { "+" }
+                        </button>
+                    </div>
+                </td>
+            );
         } else {
-            children.push(<td class={classes} attrs={{ colspan: val.colSpan, contenteditable: val.editable }}>{val.value}</td>);
+                // default rendering for non-result cells
+            if (val.title) {
+                children.push(<td class={classes} attrs={{...tdAttrs}}>{val.value}</td>);
+            } else {
+                children.push(<td class={classes} attrs={{...tdAttrs}}>{val.value}</td>);
+            }
         }
     }
     const row = <tr attrs={{ id: id }}>{children}</tr>;
