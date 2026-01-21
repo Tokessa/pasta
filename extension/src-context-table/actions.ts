@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
-import { ContextTableData } from "./utils-classes";
+import { ContextTableControlAction, ContextTableData } from "./utils-classes";
 
 interface Action {
     kind: string;
@@ -40,5 +40,32 @@ export namespace SendContextTableDataAction {
 
     export function isThisAction(action: Action): action is SendContextTableDataAction {
         return action.kind === SendContextTableDataAction.KIND;
+    }
+}
+
+/** Message to the language server to add a rule to the currently open file. */
+export interface AddRuleAction extends Action {
+    kind: typeof AddRuleAction.KIND;
+    ruleText: string;
+    contextText: string;
+    type: string;
+    controlAction:ContextTableControlAction;
+}
+
+export namespace AddRuleAction {
+    export const KIND = "addRule";
+
+    export function create(ruleText: string, contextText: string, type: string, controlAction: ContextTableControlAction): AddRuleAction {
+        return {
+            kind: KIND,
+            ruleText: ruleText,
+            contextText: contextText,
+            type,
+            controlAction
+        };
+    }
+
+    export function isThisAction(action: Action): action is AddRuleAction {
+        return action.kind === AddRuleAction.KIND;
     }
 }

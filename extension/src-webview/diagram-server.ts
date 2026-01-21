@@ -19,7 +19,7 @@ import { injectable } from "inversify";
 import { ActionHandlerRegistry } from "sprotty";
 import { Action, ActionMessage, CollapseExpandAction } from "sprotty-protocol";
 import { VscodeLspEditDiagramServer } from "sprotty-vscode-webview/lib/lsp/editing";
-import { SvgAction, HighlightUpdateAction } from "./actions";
+import { SvgAction, HighlightUpdateAction, AddRuleAction } from "./actions";
 
 @injectable()
 export class PastaDiagramServer extends VscodeLspEditDiagramServer {
@@ -33,6 +33,7 @@ export class PastaDiagramServer extends VscodeLspEditDiagramServer {
         super.initialize(registry);
         registry.register(SvgAction.KIND, this);
         registry.register(HighlightUpdateAction.KIND, this);
+        registry.register(AddRuleAction.KIND, this);
     }
 
     handleLocally(action: Action): boolean {

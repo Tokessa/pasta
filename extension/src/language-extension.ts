@@ -197,6 +197,28 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
         );
         this.contextTable = tablePanel;
 
+        // Forward incoming messages posted by the context-table webview to the language server TODO: maybe do that somewhere else
+        const attachContextTableForwarder = (panel: any) => {
+            if (panel && panel.webview) {
+                panel.webview.onDidReceiveMessage(async (message: any) => {
+                    if (message.action) {
+                        if (this.clientId) {
+                            const actionMessage: ActionMessage = {
+                                clientId: this.clientId!,
+                                action: message.action,
+                            };
+                            this.languageClient.sendNotification(acceptMessageType, actionMessage);
+                        } else {
+                            console.warn("No clientId available; cannot forward context-table action to language server.");
+                        }
+                    }
+                });
+            } else {
+                setTimeout(() => attachContextTableForwarder(this.contextTable), 300);
+            }
+        };
+        attachContextTableForwarder(this.contextTable);
+
         // adds listener for mouse click on a cell
         context.subscriptions.push(
             this.contextTable.cellClicked((cell: { rowId: string; columnId: string; text?: string } | undefined) => {

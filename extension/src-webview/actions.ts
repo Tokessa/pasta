@@ -19,6 +19,11 @@ import { inject } from "inversify";
 import { CommandExecutionContext, CommandResult, HiddenCommand, TYPES, isExportable, isHoverable, isSelectable, isViewport } from "sprotty";
 import { Action, RequestAction, ResponseAction, generateRequestId } from "sprotty-protocol";
 
+class ContextTableControlAction {
+    controller: string;
+    action: string;
+} //TODO: change this
+
 
 /** Requests the current SVG from the client. */
 export interface RequestSvgAction extends RequestAction<SvgAction> {
@@ -147,5 +152,31 @@ export namespace HighlightUpdateAction {
 
     export function isThisAction(action: Action): action is HighlightUpdateAction {
         return action.kind === HighlightUpdateAction.KIND;
+    }
+}
+
+export interface AddRuleAction extends Action {
+    kind: typeof AddRuleAction.KIND;
+    ruleText: string;
+    contextText: string;
+    type: string;
+    controlAction:ContextTableControlAction;
+}
+
+export namespace AddRuleAction {
+    export const KIND = "addRule";
+
+    export function create(ruleText: string, contextText: string, type: string, controlAction: ContextTableControlAction): AddRuleAction {
+        return {
+            kind: KIND,
+            ruleText,
+            contextText,
+            type,
+            controlAction
+        };
+    }
+
+    export function isThisAction(action: Action): action is AddRuleAction {
+        return action.kind === AddRuleAction.KIND;
     }
 }

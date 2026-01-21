@@ -15,7 +15,7 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
-import { ContextCell } from "./utils";
+import { ContextCell, getColumnIndexForRule } from "./utils";
 import { ContextTableRule, ContextTableVariable, Type } from "./utils-classes";
 
 /**
@@ -36,50 +36,30 @@ export function determineUsedRules(
     selectedType: number
 ): ContextTableRule[][] {
     // keeps track of the used rules, whereby the index determines the column
-    let usedRules: ContextTableRule[][] = [[], [], [], []];
-    switch (selectedType) {
-        case Type.NOT_PROVIDED:
-            usedRules = [[]];
-            break;
-        case Type.PROVIDED:
-            usedRules = [[], [], []];
-            break;
-        case Type.BOTH:
-            usedRules = [[], [], [], []];
-            break;
-        default:
-            console.log("Something went wrong. An undefined control action type is selected.");
-    }
-    // determine the used rules
+    // Initialize array based on selectedType
+    const numColumns = selectedType === Type.NOT_PROVIDED ? 1 
+                    : selectedType === Type.PROVIDED ? 3 
+                    : 4; 
+
+    const usedRules: ContextTableRule[][] = Array.from({ length: numColumns }, () => []);
+
+    // Determine the used rules
     rules.forEach(rule => {
-        // compare control action of the rule with the selected one and
+        // Compare control action of the rule with the selected one and
         // the context of the rule with the current context
         if (
             rule.controlAction.controller === selectedController &&
             rule.controlAction.action === selectedAction &&
             checkValues(rule.variables, variables)
         ) {
-            // determine the column for which the rule applies
-            const ruleType = rule.type.toLowerCase();
-            if (selectedType === Type.NOT_PROVIDED && ruleType === "not-provided") {
-                usedRules[0].push(rule);
-            } else if (selectedType !== Type.NOT_PROVIDED && ruleType === "provided") {
-                usedRules[0].push(rule);
-            } else if (
-                selectedType !== Type.NOT_PROVIDED &&
-                (ruleType === "too-early" || ruleType === "too-late" || ruleType === "wrong-time")
-            ) {
-                usedRules[1].push(rule);
-            } else if (
-                selectedType !== Type.NOT_PROVIDED &&
-                (ruleType === "stopped-too-soon" || ruleType === "applied-too-long")
-            ) {
-                usedRules[2].push(rule);
-            } else if (selectedType === Type.BOTH && ruleType === "not-provided") {
-                usedRules[3].push(rule);
+            // Get the column index for this rule
+            const columnIndex = getColumnIndexForRule(rule, selectedType);
+            if (columnIndex !== null && columnIndex < usedRules.length) {
+                usedRules[columnIndex].push(rule);
             }
         }
     });
+
     return usedRules;
 }
 
@@ -118,7 +98,7 @@ export function createResults(results: { hazards: string[]; rules: ContextTableR
                 const posClass = runLength === 1 ? 'result-no-start-end' : ((k === 0) ? "result-no-start" : ((k === runLength - 1) ? 'result-no-end' : 'result-no-mid'));
                 cells.push({
                     cssClass: posClass,
-                    value: 'No',
+                    value: '',
                     colSpan: 1
                 });
             }

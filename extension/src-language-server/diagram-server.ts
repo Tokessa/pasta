@@ -16,14 +16,14 @@
  */
 
 import { Action, CollapseExpandAction, CollapseExpandAllAction, DiagramServices, JsonMap, RequestAction, RequestModelAction, ResponseAction, SModelElement } from "sprotty-protocol";
-import { Connection } from "vscode-languageserver";
+import { Connection, Position } from "vscode-languageserver";
 import { FtaServices } from "./fta/fta-module.js";
 import { SetSynthesisOptionsAction, UpdateOptionsAction } from "./options/actions.js";
 import { DropDownOption } from "./options/option-models.js";
 import { SnippetDiagramServer } from "./snippets/snippet-diagram-server.js";
 import { LanguageSnippet } from "./snippets/snippet-model.js";
 import { StpaDiagramSnippets } from "./snippets/stpa-snippets.js";
-import { GenerateSVGsAction, RequestSvgAction, SvgAction, UpdateDiagramAction, HighlightUpdateAction } from "./stpa/actions.js";
+import { GenerateSVGsAction, RequestSvgAction, SvgAction, UpdateDiagramAction, HighlightUpdateAction, AddRuleAction } from "./stpa/actions.js";
 import { StpaSynthesisOptions, filteringUCAsID } from "./stpa/diagram/stpa-synthesis-options.js";
 import {
     COMPLETE_GRAPH_PATH,
@@ -52,6 +52,10 @@ import {
 } from "./stpa/result-report/svg-generator.js";
 import { StpaServices } from "./stpa/stpa-module.js";
 import { SynthesisOptions } from "./synthesis-options.js";
+import { LangiumDocuments } from "langium";
+import { TextDocument } from "vscode-languageserver-textdocument";
+import { Model } from "./generated/ast.js";
+import { URI } from "vscode-uri";
 
 // matches id of a node to its expansion state. True means expanded, false and undefined means collapsed
 export let expansionState = new Map<string, boolean>();
@@ -61,6 +65,7 @@ export class PastaDiagramServer extends SnippetDiagramServer {
     protected stpaSnippets: StpaDiagramSnippets | undefined;
     protected connection: Connection | undefined;
     protected language: StpaServices | FtaServices;
+    protected services: any;
 
     constructor(
         dispatch: <A extends Action>(action: A) => Promise<void>,
@@ -88,6 +93,7 @@ export class PastaDiagramServer extends SnippetDiagramServer {
         this.clientId = clientId;
         this.connection = connection;
         this.language = language;
+        this.services = services;
     }
 
     accept(action: Action): Promise<void> {
@@ -115,11 +121,128 @@ export class PastaDiagramServer extends SnippetDiagramServer {
                 }
             case CollapseExpandAction.KIND:
                 return this.collapseExpand(action as CollapseExpandAction);
+            case AddRuleAction.KIND:
+                    return this.handleAddRule(action as AddRuleAction);
             case CollapseExpandAllAction.KIND:
                 // TODO: create buttons in sidepanel to send this action and implement the reaction to it
                 console.log("received collapse/expand all action");
         }
         return super.handleAction(action);
+    }
+
+    /**
+     * Handles AddRuleAction sent from the context-table webview.
+     * TODO: works needs to be done
+     */
+    protected async handleAddRule(action: AddRuleAction): Promise<void> {
+        console.log("addRule");
+        // Determine target URI
+        const uri = this.options?.sourceUri;
+        let insertText = action.ruleText;
+
+        if (!uri) {
+            console.warn("handleAddRule: no target URI provided and no sourceUri in options.");
+            return Promise.resolve();
+        }
+       
+        try {
+                // Try to get a Langium document for the URI
+                const langDocs = (this.language.shared.workspace as any).LangiumDocuments as LangiumDocuments;
+                const langDoc = langDocs?.getDocument(URI.parse(uri as string));
+                let insertPosition: Position = { line: 0, character: 0 };
+    
+                if (langDoc) {
+                    const document: TextDocument = langDoc.textDocument;
+                    const model = langDoc.parseResult.value as Model;
+    
+                    // If there are existing rules, inspect them for matching controlAction & type
+                    if ((model as any).rules && (model as any).rules.length > 0) {
+                        const rules = (model as any).rules;
+                        const lastRule = rules[rules.length - 1];
+                        const lastRuleCst = lastRule.$cstNode;
+                        const lastRuleEnd = lastRuleCst?.range?.end;
+
+                        // Find latest end position among UCAs that:
+                        // - belong to a rule with same type
+                        // - belong to a rule with same controlAction
+                        let latestMatchingContextEnd: Position | undefined;
+
+                        for (const r of rules) {
+                            const ruleType: string | undefined = r?.type;
+
+                            const ruleController: string | undefined = r?.system?.ref?.name;
+                            const ruleActionName: string | undefined = r?.action?.ref?.name;
+
+                            const matchesType = ruleType !== undefined && String(ruleType) === String(action.type);
+                            const matchesControlAction =
+                                ruleController !== undefined &&
+                                ruleActionName !== undefined &&
+                                action.controlAction !== undefined &&
+                                String(ruleController) === String(action.controlAction.controller) &&
+                                String(ruleActionName) === String(action.controlAction.action);
+
+                            if (!(matchesType && matchesControlAction)) {
+                                continue;
+                            }
+
+                            if (Array.isArray(r.contexts)) {
+                                for (const context of r.contexts) {
+
+                                    const contextEnd = context?.$cstNode?.range?.end;
+                                    if (contextEnd) {
+                                        if (
+                                            !latestMatchingContextEnd ||
+                                            contextEnd.line > latestMatchingContextEnd.line ||
+                                            (contextEnd.line === latestMatchingContextEnd.line && (contextEnd.character ?? 0) > (latestMatchingContextEnd.character ?? 0))
+                                        ) {
+                                            latestMatchingContextEnd = { line: contextEnd.line, character: contextEnd.character ?? 0 };
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (latestMatchingContextEnd) {
+                            // insert after that last UCA line
+                            insertPosition = { ...latestMatchingContextEnd };
+                            insertText = action.contextText; // only context text
+                        } else if (lastRuleEnd) {
+                            // fallback: insert after last rule with complete rule text
+                            insertPosition = { ...lastRuleEnd };
+                            insertPosition.line++;
+                        } else {
+                            // fallback: append to end of document
+                            const docText = document.getText();
+                            insertPosition = document.positionAt(docText.length);
+                            insertPosition.line++;
+                            // no Context-Table in file?
+                            insertText = "Context-Table\r\n" + insertText;
+                        }
+                    } else {
+                        // no rules present -> append to end of file
+                        const docText = document.getText();
+                        insertPosition = document.positionAt(docText.length);
+                        insertPosition.line++;
+                        // no Context-Table in file?
+                        insertText = "Context-Table\r\n" + insertText;
+                    }
+                } else {
+                    // no Langium doc available
+                    insertPosition = { line: 0, character: 0 };
+                }
+    
+    
+            // Send edit notification to extension
+            this.connection?.sendNotification("editor/add", {
+                uri: uri,
+                text: insertText,
+                position: insertPosition,
+            });
+        } catch (e) {
+            console.error("Error in handleAddRule:", e);
+        }
+    
+        return Promise.resolve();
     }
 
     /**

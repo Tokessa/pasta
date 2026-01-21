@@ -17,7 +17,8 @@
 
 
 import { attributesModule, Classes, classModule, eventListenersModule, init, jsx, propsModule, styleModule, VNode } from 'snabbdom';
-import { ContextCell } from './utils';
+import { ContextCell, createVarMap, getRowData, getUCATypeString } from './utils';
+import { ContextTableVariableValues, ContextTableControlAction, Type } from './utils-classes';
 
 /** Needed to update the html document */
 export const patch = init([
@@ -134,8 +135,11 @@ export function createTHead(headers: VNode[]): VNode {
  * @param values The values of the row in the correct ordering.
  * @returns a row of a table as VNode.
  */
-export function createRow(id: string, values: ContextCell[]): VNode {
+export function createRow(id: string, values: ContextCell[], currentVariables: ContextTableVariableValues[], selectedControlAction: ContextTableControlAction, selectedType: Type): VNode {
     const children: VNode[] = [];
+
+    let counter: number = 0;
+
     for (const val of values) {
         const classes: Classes = {};
         classes[val.cssClass] = true;
@@ -149,7 +153,7 @@ export function createRow(id: string, values: ContextCell[]): VNode {
         // Render a small plus button for every "result" cell (these are the Hazardous? columns).
         if (val.cssClass.startsWith("result")) {
             children.push(
-                <td class={classes} attrs={tdAttrs}>
+                <td class={classes} attrs={{...tdAttrs, UCAType: getUCATypeString(selectedType, counter)}}>
                     <div class={{ resultCell: true }}>
                         <pre>{val.value}</pre>
                         <button
@@ -159,12 +163,25 @@ export function createRow(id: string, values: ContextCell[]): VNode {
                                 click: (e: Event) => {
                                     // Prevent row-level handlers from being triggered
                                     e.stopPropagation();
-                                    // TODO: implement the actual behavior here.
-                                    // Typical implementations: postMessage to extension host,
-                                    // open an in-webview modal/panel, expand inline details, ...
-                                    // For now we log so that click can be tested.
-                                    // eslint-disable-next-line no-console
-                                    console.log("[TODO] Hazardous plus clicked for result cell:", val.title || val.value);
+                                    
+                                    const target = e.currentTarget as HTMLElement;
+                                    const type = (target.parentNode?.parentNode as HTMLElement)?.attributes.getNamedItem("ucatype")?.value;
+                                    console.log("[TODO] Hazardous plus clicked for result cell:",getRowData(target));
+                                    const varList = getRowData(target);
+                                    const curVal = currentVariables;
+                                    // dispatch CustomEvent with detail object
+                                    const evt = new CustomEvent("addRule", {
+                                    detail: {
+                                        varList,
+                                        type: type,
+                                        controlAction: selectedControlAction,
+                                        varMap: createVarMap(currentVariables, getRowData(target))
+                                    },
+                                    bubbles: true,
+                                    cancelable: false,
+                                    });
+                                    document.dispatchEvent(evt);
+                                    (window as any).postUcaFromRow?.(getRowData(target), type);
                                 },
                             }}
                         >
@@ -173,6 +190,7 @@ export function createRow(id: string, values: ContextCell[]): VNode {
                     </div>
                 </td>
             );
+            counter++;
         } else {
                 // default rendering for non-result cells
             if (val.title) {

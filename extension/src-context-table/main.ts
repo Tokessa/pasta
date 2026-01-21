@@ -17,7 +17,7 @@
 
 import { Table } from "@kieler/table-webview/lib/table";
 import { VNode } from "snabbdom";
-import { SendContextTableDataAction } from "./actions";
+import { AddRuleAction, SendContextTableDataAction } from "./actions";
 import { createResults, determineUsedRules } from "./context-table-logic";
 import "./css/table.css";
 import { createHeaderElement, createHeaderRow, createRow, createTable, createTHead, initContextTable, patch } from "./html";
@@ -26,6 +26,7 @@ import {
     addText,
     ContextCell,
     convertControlActionsToStrings,
+    getHeadersForType,
     replaceSelector,
 } from "./utils";
 import { ContextTableControlAction, ContextTableRule, ContextTableSystemVariables, ContextTableVariable, ContextTableVariableValues, Row, Type } from './utils-classes';
@@ -34,6 +35,51 @@ interface vscode {
     postMessage(message: any): void;
 }
 declare const vscode: vscode;
+
+/**
+ * Global helper that the html.tsx createRow click-handler calls.
+ * It posts an Add Rule action to the extension host.
+ */
+document.addEventListener("addRule", (ev: Event) => {
+    try {
+        const detail = (ev as CustomEvent).detail as {
+            varList: string[];
+            type: string;
+            controlAction: ContextTableControlAction;
+            varMap: Record<string, string>;
+        };
+
+        // Build contexts section (we create one context for a row)
+        const assignedPairs: string[] = [];
+        for (const [varName, varValue] of Object.entries(detail.varMap)) {
+            assignedPairs.push(`${varName}=${varValue}`);
+        }
+        const assignedStr = assignedPairs.join(",");
+        const ruleName = "RL01";
+        const ctxName = "UCA01";
+        const hazardListStr = "[] // add fitting hazard";
+        const selectedControlAction = detail.controlAction.controller + "." + detail.controlAction.action;
+
+        // Build the full Rule text using CRLF
+        const lines: string[] = [];
+        lines.push(`${ruleName} {`);
+        lines.push(`\tcontrolAction: ${ selectedControlAction}`);
+        lines.push(`\ttype: ${detail.type} // choose correct type`);
+        lines.push(`\tcontexts: {`);
+        // single context
+        lines.push(`\t\t${ctxName} [${assignedStr}] ${hazardListStr}`);
+        lines.push(`\t}`);
+        lines.push(`}`);
+        const ruleText = lines.join("\r\n") + "\r\n";
+        const contextText = "\r\n" + `\t\t${ctxName} [${assignedStr}] ${hazardListStr}`;
+
+        // Post the action to the extension host — extension will forward to language server
+        const action = AddRuleAction.create(ruleText, contextText, detail.type, detail.controlAction);
+        vscode.postMessage({ action });
+    } catch (e) {
+        console.error("postRuleFromRow failed:", e);
+    }
+});
 
 export class ContextTable extends Table {
     /** Ids for the html elements */
@@ -261,15 +307,7 @@ export class ContextTable extends Table {
             headers.push(header);
         });
         // hazardous sub-options, which depend on the selected action type
-        let times: string[] = [];
-        switch (this.selectedType) {
-            case Type.PROVIDED:
-                times = ["Anytime", "Too Early / Too Late", "Stopped Too Soon / Applied Too Long"];
-                break;
-            case Type.BOTH:
-                times = ["Anytime", "Too Early / Too Late", "Stopped Too Soon / Applied Too Long", "Never"];
-                break;
-        }
+        let times: string[] = getHeadersForType(this.selectedType);
         times.forEach(time => {
             const header = createHeaderElement(time, this.stickValue);
             headers.push(header);
@@ -387,20 +425,6 @@ export class ContextTable extends Table {
     }
 
     /**
-     * Get all the process variables of a row of the context table
-     */
-    protected getRowData(target: HTMLElement): string[] {
-        const children = target.parentNode?.children;
-        let processVars: string[] = [];
-        if (children) {
-            for (let child of Array.from(children)) {
-                processVars.push(child.textContent)
-            }
-        }
-        return processVars;
-    } 
-
-    /**
      * Creates and appends one non-header row to the table.
      * @param table The HTMLTableElement to apply the row to.
      * @param row The row to add.
@@ -409,13 +433,14 @@ export class ContextTable extends Table {
     protected addRow(table: HTMLTableElement, row: Row, id: string): void {
         // create row placeholder
         const placeholderRow = document.createElement("tr");
+        // TODO: still need to remove this part
         placeholderRow.addEventListener("keydown", (ev) => {
         if (ev.key === "Enter") {
             ev.preventDefault(); // stop newline insertion
             const target = ev.target as HTMLElement;
             const cellValue = target.textContent || "";
             const colSpan = parseInt(target.getAttribute("colspan") || "1", 10);
-            this.getRowData(target); // all data of selected row
+            // this.getRowData(target); // all data of selected row
             this.selectedType; // currently selected type
             this.selectedControlAction; // currently selected control action with controler
             this.currentVariables; // process var names with options
@@ -430,22 +455,6 @@ export class ContextTable extends Table {
             target.blur();
         }
         });
-        //     "input", event => {
-        //     if ((event as InputEvent).inputType === "insertParagraph") {
-        //         // if the user edits a cell, the value must be sent to the backend
-        //         const target = event.target as HTMLElement;
-        //         const cellValue = target.textContent || "";
-        //         const colSpan = parseInt(target.getAttribute("colspan") || "1", 10);
-        //         const previousSibling = target.previousSibling as HTMLElement; 
-        //         this.getRowData(target);
-        //         vscode.postMessage({
-        //             action: "updateCell",
-        //             data: { id: row.variables.map(v => v.name).join("_"), value: cellValue, colSpan }
-        //         });
-        //     } else if ((event as InputEvent).inputType === "insertText" && (event as InputEvent).data === ",") {
-
-        //     }
-        // });
         table.appendChild(placeholderRow);
 
         let cells: ContextCell[] = [];
@@ -485,7 +494,7 @@ export class ContextTable extends Table {
         }
 
         // create the row
-        const htmlRow = createRow(id, cells);
+        const htmlRow = createRow(id, cells, this.currentVariables, this.selectedControlAction, this.selectedType);
         patch(placeholderRow, htmlRow);
     }
 

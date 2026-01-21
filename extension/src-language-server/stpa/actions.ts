@@ -16,6 +16,7 @@
  */
 
 import { Action, JsonMap, RequestAction, generateRequestId, ResponseAction } from "sprotty-protocol";
+import { ContextTableControlAction } from "./contextTable/utils-classes.js";
 
 /** Send to server to generate SVGs for the STPA result report */
 export interface GenerateSVGsAction extends Action {
@@ -126,5 +127,32 @@ export namespace HighlightUpdateAction {
 
     export function isThisAction(action: Action): action is HighlightUpdateAction {
         return action.kind === HighlightUpdateAction.KIND;
+    }
+}
+
+// Adds a rule to the stpa file
+export interface AddRuleAction extends Action {
+    kind: typeof AddRuleAction.KIND;
+    ruleText: string;
+    contextText: string;
+    type: string;
+    controlAction:ContextTableControlAction;
+}
+
+export namespace AddRuleAction {
+    export const KIND = "addRule";
+
+    export function create(ruleText: string, contextText: string, type: string, controlAction: ContextTableControlAction): AddRuleAction {
+        return {
+            kind: KIND,
+            ruleText,
+            contextText,
+            type,
+            controlAction
+        };
+    }
+
+    export function isThisAction(action: Action): action is AddRuleAction {
+        return action.kind === AddRuleAction.KIND;
     }
 }

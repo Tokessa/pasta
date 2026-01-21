@@ -75,7 +75,6 @@ td.result-no-end {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 500;
     color: var(--vscode-editor-foreground);
     background-color: transparent;
     pointer-events: none; /* allow clicks to reach the underlying table cells */
@@ -120,15 +119,12 @@ td.result-no-start-end {
     border: none;
     background: var(--vscode-foreground);
     color: var(--vscode-editor-background);
-    font-weight: 700;
-    font-size: 10px;
     line-height: 14px;
     padding: 0;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
     transition: transform 0.08s ease, opacity 0.12s ease;
     z-index: 2;
     box-sizing: border-box;
