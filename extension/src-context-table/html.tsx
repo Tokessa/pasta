@@ -17,8 +17,8 @@
 
 
 import { attributesModule, Classes, classModule, eventListenersModule, init, jsx, propsModule, styleModule, VNode } from 'snabbdom';
-import { ContextCell, createVarMap, getRowData, getUCATypeString } from './utils';
-import { ContextTableVariableValues, ContextTableControlAction, Type } from './utils-classes';
+import { createVarMap, getRowData, getUCATypeString, postAddRuleAction } from './utils';
+import { ContextTableVariableValues, ContextTableControlAction, Type, ContextCell } from './utils-classes';
 
 /** Needed to update the html document */
 export const patch = init([
@@ -133,6 +133,9 @@ export function createTHead(headers: VNode[]): VNode {
  * Creates a row of a table as VNode.
  * @param id Id of the row.
  * @param values The values of the row in the correct ordering.
+ * @param currentVariables The current process variables of the context table.
+ * @param selectedControlAction The currently selected control action.
+ * @param selectedType The currently selected type of the context table.
  * @returns a row of a table as VNode.
  */
 export function createRow(id: string, values: ContextCell[], currentVariables: ContextTableVariableValues[], selectedControlAction: ContextTableControlAction, selectedType: Type): VNode {
@@ -150,7 +153,7 @@ export function createRow(id: string, values: ContextCell[], currentVariables: C
             tdAttrs.title = val.title;
         }
 
-        // Render a small plus button for every "result" cell (these are the Hazardous? columns).
+        // Render a small plus button for every result cell
         if (val.cssClass.startsWith("result")) {
             children.push(
                 <td class={classes} attrs={{...tdAttrs, UCAType: getUCATypeString(selectedType, counter)}}>
@@ -166,22 +169,12 @@ export function createRow(id: string, values: ContextCell[], currentVariables: C
                                     
                                     const target = e.currentTarget as HTMLElement;
                                     const type = (target.parentNode?.parentNode as HTMLElement)?.attributes.getNamedItem("ucatype")?.value;
-                                    console.log("[TODO] Hazardous plus clicked for result cell:",getRowData(target));
-                                    const varList = getRowData(target);
-                                    const curVal = currentVariables;
-                                    // dispatch CustomEvent with detail object
-                                    const evt = new CustomEvent("addRule", {
-                                    detail: {
-                                        varList,
-                                        type: type,
+                                    const details = {
+                                        type: type ?? "",
                                         controlAction: selectedControlAction,
                                         varMap: createVarMap(currentVariables, getRowData(target))
-                                    },
-                                    bubbles: true,
-                                    cancelable: false,
-                                    });
-                                    document.dispatchEvent(evt);
-                                    (window as any).postUcaFromRow?.(getRowData(target), type);
+                                    };
+                                    postAddRuleAction(details);
                                 },
                             }}
                         >

@@ -58,14 +58,13 @@ import { Model } from "./generated/ast.js";
 import { URI } from "vscode-uri";
 
 // matches id of a node to its expansion state. True means expanded, false and undefined means collapsed
-export let expansionState = new Map<string, boolean>();
+export const expansionState = new Map<string, boolean>();
 
 export class PastaDiagramServer extends SnippetDiagramServer {
     protected synthesisOptions: SynthesisOptions | undefined;
     protected stpaSnippets: StpaDiagramSnippets | undefined;
     protected connection: Connection | undefined;
     protected language: StpaServices | FtaServices;
-    protected services: any;
 
     constructor(
         dispatch: <A extends Action>(action: A) => Promise<void>,
@@ -93,7 +92,6 @@ export class PastaDiagramServer extends SnippetDiagramServer {
         this.clientId = clientId;
         this.connection = connection;
         this.language = language;
-        this.services = services;
     }
 
     accept(action: Action): Promise<void> {
@@ -131,24 +129,34 @@ export class PastaDiagramServer extends SnippetDiagramServer {
     }
 
     /**
-     * Handles AddRuleAction sent from the context-table webview.
-     * TODO: works needs to be done
+     * Adds a new rule to the document at the correct position depending on the existing rules.
+     * @param action The action that triggered this method. 
+     * @param sourceUri (optional) The target URI. If not provided, the sourceUri from the diagram options is used.
+     * @returns 
      */
-    protected async handleAddRule(action: AddRuleAction): Promise<void> {
-        console.log("addRule");
+    protected async handleAddRule(action: AddRuleAction & { sourceUri?: string }): Promise<void> {
         // Determine target URI
-        const uri = this.options?.sourceUri;
+        const uri = action.sourceUri ?? this.options?.sourceUri;
         let insertText = action.ruleText;
 
         if (!uri) {
             console.warn("handleAddRule: no target URI provided and no sourceUri in options.");
             return Promise.resolve();
         }
+
+        const uriString = typeof uri === "string" ? uri : uri.toString();
+        const parsedUri = URI.parse(uriString);
+
+        // Ensure the document is built
+        try {
+            await this.language.shared.workspace.DocumentBuilder.update([parsedUri], []);
+        } catch (err) {
+            console.warn("handleAddRule: DocumentBuilder.update failed for", uriString, err);
+        }
        
         try {
-                // Try to get a Langium document for the URI
                 const langDocs = (this.language.shared.workspace as any).LangiumDocuments as LangiumDocuments;
-                const langDoc = langDocs?.getDocument(URI.parse(uri as string));
+                const langDoc = langDocs?.getDocument(parsedUri);
                 let insertPosition: Position = { line: 0, character: 0 };
     
                 if (langDoc) {
@@ -162,9 +170,6 @@ export class PastaDiagramServer extends SnippetDiagramServer {
                         const lastRuleCst = lastRule.$cstNode;
                         const lastRuleEnd = lastRuleCst?.range?.end;
 
-                        // Find latest end position among UCAs that:
-                        // - belong to a rule with same type
-                        // - belong to a rule with same controlAction
                         let latestMatchingContextEnd: Position | undefined;
 
                         for (const r of rules) {
@@ -185,6 +190,7 @@ export class PastaDiagramServer extends SnippetDiagramServer {
                                 continue;
                             }
 
+                            // try to find the latest context end position to add new context 
                             if (Array.isArray(r.contexts)) {
                                 for (const context of r.contexts) {
 
@@ -208,29 +214,25 @@ export class PastaDiagramServer extends SnippetDiagramServer {
                             insertText = action.contextText; // only context text
                         } else if (lastRuleEnd) {
                             // fallback: insert after last rule with complete rule text
-                            insertPosition = { ...lastRuleEnd };
-                            insertPosition.line++;
+                            insertPosition = { line: lastRuleEnd.line + 1, character: lastRuleEnd.character ?? 0 };
                         } else {
-                            // fallback: append to end of document
+                            // fallback: append to end of document (assume no Context-Table rules exist)
                             const docText = document.getText();
                             insertPosition = document.positionAt(docText.length);
-                            insertPosition.line++;
-                            // no Context-Table in file?
+                            insertPosition.line += 2;
                             insertText = "Context-Table\r\n" + insertText;
                         }
                     } else {
                         // no rules present -> append to end of file
                         const docText = document.getText();
                         insertPosition = document.positionAt(docText.length);
-                        insertPosition.line++;
-                        // no Context-Table in file?
+                        insertPosition.line += 2;
                         insertText = "Context-Table\r\n" + insertText;
                     }
                 } else {
-                    // no Langium doc available
+                    console.warn("handleAddRule: no Langium doc available for", uriString);
                     insertPosition = { line: 0, character: 0 };
                 }
-    
     
             // Send edit notification to extension
             this.connection?.sendNotification("editor/add", {
@@ -241,7 +243,6 @@ export class PastaDiagramServer extends SnippetDiagramServer {
         } catch (e) {
             console.error("Error in handleAddRule:", e);
         }
-    
         return Promise.resolve();
     }
 

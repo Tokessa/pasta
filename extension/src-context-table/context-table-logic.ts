@@ -15,8 +15,8 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
-import { ContextCell, getColumnIndexForRule } from "./utils";
-import { ContextTableRule, ContextTableVariable, Type } from "./utils-classes";
+import { getColumnIndexForRule } from "./utils";
+import { ContextTableRule, ContextTableVariable, Type, ContextCell } from "./utils-classes";
 
 /**
 /**
@@ -91,7 +91,7 @@ export function createResults(results: { hazards: string[]; rules: ContextTableR
         } else {
             // start of an empty run
             let j = i + 1;
-            while (j < len && results[j].rules.length === 0) j++;
+            while (j < len && results[j].rules.length === 0) {j++;}
             const runLength = j - i;
             // create runId and populate runLength cells with metadata
             for (let k = 0; k < runLength; k++) {

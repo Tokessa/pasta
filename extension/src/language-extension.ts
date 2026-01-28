@@ -25,7 +25,7 @@ import {
     acceptMessageType,
 } from "sprotty-vscode/lib/lsp";
 import * as vscode from "vscode";
-import { AddSnippetAction, GenerateSVGsAction } from "./actions";
+import { AddSnippetAction, GenerateSVGsAction, UpdateDiagramAction } from "./actions";
 import { ContextTablePanel } from "./context-table-panel";
 import { StorageService } from "./storage-service";
 import {
@@ -47,6 +47,7 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
     /** Saves the last selected UCA in the context table. */
     protected lastSelectedUCA: string[];
     clientId: string | undefined;
+    protected contextTableClientId?: string;
 
     protected resolveLSReady: () => void;
     readonly lsReady = new Promise<void>(resolve => (this.resolveLSReady = resolve));
@@ -187,7 +188,7 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
         }
     }
 
-    createContextTable(context: vscode.ExtensionContext): void {
+    createContextTable(context: vscode.ExtensionContext, uri: vscode.Uri): void {
         const extensionPath = this.options.extensionUri.fsPath;
         const tablePanel = new ContextTablePanel(
             "Context-Table",
@@ -197,20 +198,44 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
         );
         this.contextTable = tablePanel;
 
-        // Forward incoming messages posted by the context-table webview to the language server TODO: maybe do that somewhere else
-        const attachContextTableForwarder = (panel: any) => {
+        // Forward incoming messages posted by the context-table webview to the language server
+        const attachContextTableForwarder = (panel: any): void => {
             if (panel && panel.webview) {
                 panel.webview.onDidReceiveMessage(async (message: any) => {
-                    if (message.action) {
-                        if (this.clientId) {
-                            const actionMessage: ActionMessage = {
-                                clientId: this.clientId!,
-                                action: message.action,
-                            };
-                            this.languageClient.sendNotification(acceptMessageType, actionMessage);
-                        } else {
-                            console.warn("No clientId available; cannot forward context-table action to language server.");
+                    if (!message?.action) {return;}
+
+                    // Ensure we have a client id for the context-table, so we don't need the stpa diagram webview's id
+                    if (!this.contextTableClientId) {
+                        try {
+                            const identifier = await this.createDiagramIdentifier(uri);
+                            this.contextTableClientId = identifier?.clientId;
+
+                            if (this.contextTableClientId) {
+                                // Initialize server-side diagram instance with the sourceUri option.
+                                const initMsg: ActionMessage = {
+                                    clientId: this.contextTableClientId,
+                                    action: {
+                                        kind: UpdateDiagramAction.KIND,
+                                        options: { sourceUri: uri.toString() },
+                                    } as UpdateDiagramAction,
+                                };
+                                this.languageClient.sendNotification(acceptMessageType, initMsg);
+                                await new Promise(resolve => setTimeout(resolve, 100));
                         }
+                        } catch (e) {
+                            console.warn("Could not create context-table diagram identifier:", e);
+                        }
+                    }
+
+                    if (this.contextTableClientId) {
+                        const actionPayload = { ...message.action, sourceUri: uri.toString() };
+                        const actionMessage: ActionMessage = {
+                            clientId: this.contextTableClientId,
+                            action: actionPayload,
+                        };
+                        this.languageClient.sendNotification(acceptMessageType, actionMessage);
+                    } else {
+                        console.warn("No context-table clientId available; cannot forward action to language server.");
                     }
                 });
             } else {

@@ -15,49 +15,13 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
-import { Cell } from "@kieler/table-webview/lib/helper";
 import { VNode } from "snabbdom";
 import { createSelector, createText, patch } from "./html";
-import { ContextTableControlAction, ContextTableRule, ContextTableVariableValues, Type } from './utils-classes';
-import type { Rule } from "../src-language-server/generated/ast.js";
+import { ContextTableControlAction, ContextTableRule, ContextTableVariableValues, Type} from './utils-classes';
+import { RULE_TYPE_MAPPINGS, RuleType, VALID_RULE_TYPES } from "./utils-types";
+import { AddRuleAction } from "./actions";
 
-type RuleType = Rule['type'];
-
-/** A mapping of rule types to context table headers. */
-export interface RuleTypeMapping {
-    header: string;
-    ruleTypes: RuleType[];
-    index: number;
-}
-
-// These strings MUST match the Langium grammar exactly
-export const RULE_TYPE_MAPPINGS: RuleTypeMapping[] = [
-    {
-        header: "Anytime",
-        ruleTypes: ["provided"],
-        index: 0
-    },
-    {
-        header: "Too Early / Too Late",
-        ruleTypes: ["too-early", "too-late", "wrong-time"],
-        index: 1
-    },
-    {
-        header: "Stopped Too Soon / Applied Too Long",
-        ruleTypes: ["stopped-too-soon", "applied-too-long"],
-        index: 2
-    },
-    {
-        header: "Never",
-        ruleTypes: ["not-provided"], 
-        index: 3
-    }
-];
-
-/** All valid types declared in RULE_TYPE_MAPPINGS. */
-const VALID_RULE_TYPES: RuleType[] = [
-    ...new Set(RULE_TYPE_MAPPINGS.flatMap(mapping => mapping.ruleTypes))
-];
+declare const vscode: { postMessage(message: any): void };
 
 /** Function that test if a type is valid. */
 function isValidRuleType(type: string): type is RuleType {
@@ -137,13 +101,6 @@ export function getUCATypeString(selectedType: Type, columnIndex: number): strin
     return mapping ? mapping.ruleTypes.join('/') : '';
 }
 
-/** A cell in the context table. Can span mutliple columns. */
-export class ContextCell extends Cell {
-    colSpan: number;
-    title?: string;
-    UCAType?: string;
-}
-
 /**
  * Concats the elements of each controlaction in {@code controlactions} with a dot.
  * @param controlactions A list containing controlactions that should be converted to strings.
@@ -207,10 +164,10 @@ export function addSelector(parent: HTMLElement, id: string, index: number, opti
 export function getRowData(target: HTMLElement): string[] {
     const rowParent = target.parentNode?.parentNode?.parentNode;
     const children = rowParent?.children;
-    let processVars: string[] = [];
+    const processVars: string[] = [];
     if (children) {
-        for (let child of Array.from(children)) {
-            if (child.matches("td.context-variable")) {
+        for (const child of Array.from(children)) {
+            if (child.matches("td.context-variable") && child.textContent) {
                 processVars.push(child.textContent);
             }
         }
@@ -229,4 +186,45 @@ export function createVarMap(variables: ContextTableVariableValues[], selectedVa
         map[variable.name] = selectedValues[index];
         return map;
     }, {} as Record<string, string>);
+}
+
+/**
+ * Function that post an AddRuleAction with the correct rule text to the language server.
+ * @param detail The detail object containing the necessary information to build the rule.
+ */
+export function postAddRuleAction(detail: {
+        type: string;
+        controlAction: ContextTableControlAction;
+        varMap: Record<string, string>;
+    }): void {
+    try {
+        const ruleName = "RL01";
+        const ctxName = "UCA01";
+        const hazardListStr = "[] // add fitting hazard";
+
+        // Build contexts section
+        const assignedPairs: string[] = [];
+        for (const [varName, varValue] of Object.entries(detail.varMap)) {
+            assignedPairs.push(`${varName}=${varValue}`);
+        }
+        const assignedStr = assignedPairs.join(",");
+        const selectedControlAction = detail.controlAction.controller + "." + detail.controlAction.action;
+
+        // Build the full Rule text 
+        const lines: string[] = [];
+        lines.push(`${ruleName} {`);
+        lines.push(`\tcontrolAction: ${ selectedControlAction}`);
+        lines.push(`\ttype: ${detail.type} // choose correct type`);
+        lines.push(`\tcontexts: {`);
+        lines.push(`\t\t${ctxName} [${assignedStr}] ${hazardListStr}`);
+        lines.push(`\t}`);
+        lines.push(`}`);
+        const ruleText = lines.join("\r\n") + "\r\n";
+        const contextText = "\r\n" + `\t\t${ctxName} [${assignedStr}] ${hazardListStr}`;
+
+        const action = AddRuleAction.create(ruleText, contextText, detail.type, detail.controlAction);
+        vscode.postMessage({ action });
+    } catch (e) {
+        console.error("post AddRuleAction failed:", e);
+    }
 }

@@ -24,64 +24,18 @@ import { createHeaderElement, createHeaderRow, createRow, createTable, createTHe
 import {
     addSelector,
     addText,
-    ContextCell,
     convertControlActionsToStrings,
     getHeadersForType,
     replaceSelector,
 } from "./utils";
-import { ContextTableControlAction, ContextTableRule, ContextTableSystemVariables, ContextTableVariable, ContextTableVariableValues, Row, Type } from './utils-classes';
+import { ContextTableControlAction, ContextTableRule, ContextTableSystemVariables, ContextTableVariable, ContextTableVariableValues, Row, Type, ContextCell } from './utils-classes';
+import { ActionHandlerRegistry, IActionHandlerInitializer, ICommand } from "sprotty";
+import { Action } from "sprotty-protocol";
 
-interface vscode {
-    postMessage(message: any): void;
-}
-declare const vscode: vscode;
+declare const vscode: { postMessage(message: any): void };
 
-/**
- * Global helper that the html.tsx createRow click-handler calls.
- * It posts an Add Rule action to the extension host.
- */
-document.addEventListener("addRule", (ev: Event) => {
-    try {
-        const detail = (ev as CustomEvent).detail as {
-            varList: string[];
-            type: string;
-            controlAction: ContextTableControlAction;
-            varMap: Record<string, string>;
-        };
 
-        // Build contexts section (we create one context for a row)
-        const assignedPairs: string[] = [];
-        for (const [varName, varValue] of Object.entries(detail.varMap)) {
-            assignedPairs.push(`${varName}=${varValue}`);
-        }
-        const assignedStr = assignedPairs.join(",");
-        const ruleName = "RL01";
-        const ctxName = "UCA01";
-        const hazardListStr = "[] // add fitting hazard";
-        const selectedControlAction = detail.controlAction.controller + "." + detail.controlAction.action;
-
-        // Build the full Rule text using CRLF
-        const lines: string[] = [];
-        lines.push(`${ruleName} {`);
-        lines.push(`\tcontrolAction: ${ selectedControlAction}`);
-        lines.push(`\ttype: ${detail.type} // choose correct type`);
-        lines.push(`\tcontexts: {`);
-        // single context
-        lines.push(`\t\t${ctxName} [${assignedStr}] ${hazardListStr}`);
-        lines.push(`\t}`);
-        lines.push(`}`);
-        const ruleText = lines.join("\r\n") + "\r\n";
-        const contextText = "\r\n" + `\t\t${ctxName} [${assignedStr}] ${hazardListStr}`;
-
-        // Post the action to the extension host — extension will forward to language server
-        const action = AddRuleAction.create(ruleText, contextText, detail.type, detail.controlAction);
-        vscode.postMessage({ action });
-    } catch (e) {
-        console.error("postRuleFromRow failed:", e);
-    }
-});
-
-export class ContextTable extends Table {
+export class ContextTable extends Table implements IActionHandlerInitializer {
     /** Ids for the html elements */
     protected actionSelectorId = "select_action";
     protected typeSelectorId = "select_type";
@@ -131,6 +85,19 @@ export class ContextTable extends Table {
     }
 
     protected __mergeListenersInitialized = false;
+
+    initialize(registry: ActionHandlerRegistry): void {
+        registry.register(AddRuleAction.KIND, this);
+        registry.register(SendContextTableDataAction.KIND, this);
+    }
+
+    handle(action: Action): void | Action | ICommand {
+        if (AddRuleAction.isThisAction(action)) {
+            vscode.postMessage({ action: action });
+            return;
+        }
+        return;
+    }
 
     protected handleMessages(message: any): void {
         const action = message.data.action;
@@ -307,7 +274,7 @@ export class ContextTable extends Table {
             headers.push(header);
         });
         // hazardous sub-options, which depend on the selected action type
-        let times: string[] = getHeadersForType(this.selectedType);
+        const times: string[] = getHeadersForType(this.selectedType);
         times.forEach(time => {
             const header = createHeaderElement(time, this.stickValue);
             headers.push(header);
@@ -361,7 +328,9 @@ export class ContextTable extends Table {
                 // window resize
                 window.addEventListener("resize", () => {
                     const t = document.getElementById(this.tableId) as HTMLTableElement | null;
-                    if (t) this.mergeNoCellsVisuals(t);
+                    if (t) {
+                        this.mergeNoCellsVisuals(t);
+                    }
                 }, { passive: true });
 
                 // container scroll (table is enclosed by a div.contextTable — overlay is appended to that container)
@@ -433,28 +402,6 @@ export class ContextTable extends Table {
     protected addRow(table: HTMLTableElement, row: Row, id: string): void {
         // create row placeholder
         const placeholderRow = document.createElement("tr");
-        // TODO: still need to remove this part
-        placeholderRow.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") {
-            ev.preventDefault(); // stop newline insertion
-            const target = ev.target as HTMLElement;
-            const cellValue = target.textContent || "";
-            const colSpan = parseInt(target.getAttribute("colspan") || "1", 10);
-            // this.getRowData(target); // all data of selected row
-            this.selectedType; // currently selected type
-            this.selectedControlAction; // currently selected control action with controler
-            this.currentVariables; // process var names with options
-            console.log(row.variables.map(v => v.name).join("_"));
-            // send updated value to backend
-            vscode.postMessage({
-            action: "updateCell",
-            data: { id: row.variables.map(v => v.name).join("_"), value: cellValue, colSpan }
-            });
-
-            // remove focus from the cell so the user "leaves" it
-            target.blur();
-        }
-        });
         table.appendChild(placeholderRow);
 
         let cells: ContextCell[] = [];
@@ -509,8 +456,8 @@ export class ContextTable extends Table {
      */
     protected mergeNoCellsVisuals(table: HTMLTableElement): void {
         const container = table.parentElement as HTMLElement;
-        if (!container) return;
-        if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+        if (!container) {return;}
+        if (getComputedStyle(container).position === 'static') {container.style.position = 'relative';}
 
         // remove previous overlays
         container.querySelectorAll('.result-no-overlay').forEach(o => o.remove());
@@ -529,7 +476,7 @@ export class ContextTable extends Table {
             // discover run by walking nextElementSibling while sibling.className startsWith 'result-no'
             const row = startCell.parentElement as HTMLTableRowElement;
             let lastCell: Element = startCell;
-            let runCells: HTMLElement[] = [startCell as HTMLElement];
+            const runCells: HTMLElement[] = [startCell as HTMLElement];
 
             let next = startCell.nextElementSibling;
             while (next && (next as HTMLElement).className && (next as HTMLElement).className.startsWith('result-no')) {
