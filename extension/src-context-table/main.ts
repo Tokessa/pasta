@@ -323,7 +323,7 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
             }
             this.mergeNoCellsVisuals(table);
 
-            // initialize one-time listeners (resize / container scroll) to keep overlays synced on viewport changes
+            // initialize one-time listeners to keep overlays synced on viewport changes
             if (!this.__mergeListenersInitialized) {
                 // window resize
                 window.addEventListener("resize", () => {
@@ -333,7 +333,6 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
                     }
                 }, { passive: true });
 
-                // container scroll (table is enclosed by a div.contextTable — overlay is appended to that container)
                 const container = table.parentElement as HTMLElement | null;
                 if (container) {
                     container.addEventListener("scroll", () => this.mergeNoCellsVisuals(table), { passive: true });
@@ -426,10 +425,8 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
                     colSpan = 4;
                     break;
             }
-            // cells.push({ cssClass: "result", value: "No", colSpan: colSpan});
 
-            // Create one cell per result column. To visually merge them when empty
-            // we give them the 'result-no' class and put "No" only in the first of the run.
+            // Create one cell per result column. To visually merge them -> 'result-no' class.
             for (let k = 0; k < colSpan; k++) {
                 const posClass =  colSpan === 1 ? 'result-no-start-end' : ((k === 0) ? "result-no-start" : ((k === colSpan - 1) ? 'result-no-end' : 'result-no-mid'));
                 cells.push({
@@ -446,13 +443,9 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
     }
 
      /**
-     * After the table DOM has been patched, this function visually merges contiguous
-     * result-no cells by:
-     *  - marking start/mid/end classes so border CSS can be applied only on group edges
-     *  - creating one absolutely-positioned overlay element that displays a single
-     *    centered "No" across the whole run
-     *
-     * Call this once the table has been fully rendered/updated.
+     * Functionthat visually merges contiguous result-no cells by creating one absolutely-positioned overlay element 
+     * that displays a single centered "No"
+     * @param table The context table element
      */
     protected mergeNoCellsVisuals(table: HTMLTableElement): void {
         const container = table.parentElement as HTMLElement;
@@ -470,10 +463,9 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
             }
         });
 
-        // iterate only run starts (cheap)
+        // iterate only run starts 
         const starts = table.querySelectorAll('td.result-no-start, td.result-no-start-end');
         starts.forEach(startCell => {
-            // discover run by walking nextElementSibling while sibling.className startsWith 'result-no'
             const row = startCell.parentElement as HTMLTableRowElement;
             let lastCell: Element = startCell;
             const runCells: HTMLElement[] = [startCell as HTMLElement];
@@ -485,19 +477,16 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
                 next = next.nextElementSibling;
             }
 
-            // hide underlying visible text for the run (keep textContent "No" for click logic)
+            // hide underlying visible text for the run
             runCells.forEach(td => (td as HTMLElement).style.color = 'transparent');
 
-            // measure using offset positions relative to the container (more stable than viewport arithmetic)
-            // We want left/top in container-local coordinates (pixels inside container)
+            // measure using offset positions relative to the container 
             const firstOffsetLeft = (startCell as HTMLElement).offsetLeft;
-            // const firstOffsetTop = (startCell as HTMLElement).offsetTop;
             const firstHeight = (startCell as HTMLElement).offsetHeight;
             const lastRight = (lastCell as HTMLElement).offsetLeft + (lastCell as HTMLElement).offsetWidth;
             const width = lastRight - firstOffsetLeft;
             const height = firstHeight;
             const left = firstOffsetLeft;
-            // Row top as offsetTop of the row's first cell (row offsetTop is fine), but ensure to use the cell's offsetTop for row positioning
             const top = (row.firstElementChild as HTMLElement).offsetTop;
 
             const overlay = document.createElement('div');

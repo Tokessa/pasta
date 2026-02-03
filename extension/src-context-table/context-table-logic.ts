@@ -65,21 +65,16 @@ export function determineUsedRules(
 
 /**
  * Creates the result cells.
- * NOTE: changed to always create one cell per logical column (colSpan = 1). For contiguous
- * empty columns we output "No" only in the first of the contiguous run and an empty cell for
- * the following columns. Visual merging is done via CSS (see main.css).
  * @param results The hazards and rules for the result columns.
  * @returns The cells for the "Hazardous?"-column.
  */
 export function createResults(results: { hazards: string[]; rules: ContextTableRule[] }[]): ContextCell[] {
     const cells: ContextCell[] = [];
-    // go through all of the hazardous columns
-    // First, discover contiguous runs of empty columns (rules.length === 0)
     const len = results.length;
     let i = 0;
+
     while (i < len) {
         if (results[i].rules.length !== 0) {
-            // non-empty -> normal result cell
             const ucas = results[i].rules.map(rule => rule.id);
             cells.push({
                 cssClass: "result",
@@ -93,7 +88,6 @@ export function createResults(results: { hazards: string[]; rules: ContextTableR
             let j = i + 1;
             while (j < len && results[j].rules.length === 0) {j++;}
             const runLength = j - i;
-            // create runId and populate runLength cells with metadata
             for (let k = 0; k < runLength; k++) {
                 const posClass = runLength === 1 ? 'result-no-start-end' : ((k === 0) ? "result-no-start" : ((k === runLength - 1) ? 'result-no-end' : 'result-no-mid'));
                 cells.push({
@@ -117,24 +111,20 @@ export function createResultsold(results: { hazards: string[]; rules: ContextTab
     const cells: ContextCell[] = [];
     // keeps track on how many neihbouring columns have no rule applied
     let noAppliedRuleCounter: number = 0;
-    // go through all of the hazardous columns
+
     for (let hazardColumn = 0; hazardColumn < results.length; hazardColumn++) {
         if (results[hazardColumn].rules.length === 0) {
-            // there is no rule for this column
             noAppliedRuleCounter++;
             if (hazardColumn + 1 === results.length) {
-                // its the last column so we can fill the missing columns with a cell containing the value "No"
                 cells.push({ cssClass: "result", value: "No", colSpan: noAppliedRuleCounter});
             }
         } else {
-            // it may be that previous columns had no rule
-            // in this case a cell with value "No" must be created that covers these columns
             if (noAppliedRuleCounter !== 0) {
                 cells.push({ cssClass: "result", value: "No", colSpan: noAppliedRuleCounter});
                 noAppliedRuleCounter = 0;
             }
             const ucas = results[hazardColumn].rules.map(rule => rule.id);
-            // add the hazards, defined by the rule, as a cell
+
             cells.push({
                 cssClass: "result",
                 value: ucas.toString(),
