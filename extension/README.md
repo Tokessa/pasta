@@ -153,7 +153,7 @@ ControlCentre.manual {
     providing {}
     tooEarlyOrLateOrWrongOrder {}
     stoppedTooSoonOrLate {}
-}f
+}
 
 ControllerConstraints
 C1 "ControlCentre must provide the Manual setting control action during VC malfunctioning and vessel too close to No Go Area" [UCA1]

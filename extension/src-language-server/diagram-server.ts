@@ -155,84 +155,84 @@ export class PastaDiagramServer extends SnippetDiagramServer {
         }
        
         try {
-                const langDocs = (this.language.shared.workspace as any).LangiumDocuments as LangiumDocuments;
-                const langDoc = langDocs?.getDocument(parsedUri);
-                let insertPosition: Position = { line: 0, character: 0 };
-    
-                if (langDoc) {
-                    const document: TextDocument = langDoc.textDocument;
-                    const model = langDoc.parseResult.value as Model;
-    
-                    // If there are existing rules, inspect them for matching controlAction & type
-                    if ((model as any).rules && (model as any).rules.length > 0) {
-                        const rules = (model as any).rules;
-                        const lastRule = rules[rules.length - 1];
-                        const lastRuleCst = lastRule.$cstNode;
-                        const lastRuleEnd = lastRuleCst?.range?.end;
+            const langDocs = (this.language.shared.workspace as any).LangiumDocuments as LangiumDocuments;
+            const langDoc = langDocs?.getDocument(parsedUri);
+            let insertPosition: Position;
 
-                        let latestMatchingContextEnd: Position | undefined;
+            if (langDoc) {
+                const document: TextDocument = langDoc.textDocument;
+                const model = langDoc.parseResult.value as Model;
 
-                        for (const r of rules) {
-                            const ruleType: string | undefined = r?.type;
+                // If there are existing rules, inspect them for matching controlAction & type
+                if ((model as any).rules && (model as any).rules.length > 0) {
+                    const rules = (model as any).rules;
+                    const lastRule = rules[rules.length - 1];
+                    const lastRuleCst = lastRule.$cstNode;
+                    const lastRuleEnd = lastRuleCst?.range?.end;
 
-                            const ruleController: string | undefined = r?.system?.ref?.name;
-                            const ruleActionName: string | undefined = r?.action?.ref?.name;
+                    let latestMatchingContextEnd: Position | undefined;
 
-                            const matchesType = ruleType !== undefined && String(ruleType) === String(action.type);
-                            const matchesControlAction =
-                                ruleController !== undefined &&
-                                ruleActionName !== undefined &&
-                                action.controlAction !== undefined &&
-                                String(ruleController) === String(action.controlAction.controller) &&
-                                String(ruleActionName) === String(action.controlAction.action);
+                    for (const r of rules) {
+                        const ruleType: string | undefined = r?.type;
 
-                            if (!(matchesType && matchesControlAction)) {
-                                continue;
-                            }
+                        const ruleController: string | undefined = r?.system?.ref?.name;
+                        const ruleActionName: string | undefined = r?.action?.ref?.name;
 
-                            // try to find the latest context end position to add new context 
-                            if (Array.isArray(r.contexts)) {
-                                for (const context of r.contexts) {
+                        const matchesType = ruleType !== undefined && String(ruleType) === String(action.type);
+                        const matchesControlAction =
+                        ruleController !== undefined &&
+                        ruleActionName !== undefined &&
+                        action.controlAction !== undefined &&
+                        String(ruleController) === String(action.controlAction.controller) &&
+                        String(ruleActionName) === String(action.controlAction.action);
 
-                                    const contextEnd = context?.$cstNode?.range?.end;
-                                    if (contextEnd) {
-                                        if (
-                                            !latestMatchingContextEnd ||
-                                            contextEnd.line > latestMatchingContextEnd.line ||
-                                            (contextEnd.line === latestMatchingContextEnd.line && (contextEnd.character ?? 0) > (latestMatchingContextEnd.character ?? 0))
-                                        ) {
-                                            latestMatchingContextEnd = { line: contextEnd.line, character: contextEnd.character ?? 0 };
-                                        }
+                        if (!(matchesType && matchesControlAction)) {
+                            continue;
+                        }
+
+                        // try to find the latest context end position to add new context 
+                        if (Array.isArray(r.contexts)) {
+                            for (const context of r.contexts) {
+
+                                const contextEnd = context?.$cstNode?.range?.end;
+                                if (contextEnd) {
+                                    if (
+                                        !latestMatchingContextEnd ||
+                                        contextEnd.line > latestMatchingContextEnd.line ||
+                                        (contextEnd.line === latestMatchingContextEnd.line && (contextEnd.character ?? 0) > (latestMatchingContextEnd.character ?? 0))
+                                    ) {
+                                        latestMatchingContextEnd = { line: contextEnd.line, character: contextEnd.character ?? 0 };
                                     }
                                 }
                             }
                         }
+                    }
 
-                        if (latestMatchingContextEnd) {
-                            // insert after that last UCA line
-                            insertPosition = { ...latestMatchingContextEnd };
-                            insertText = action.contextText; // only context text
-                        } else if (lastRuleEnd) {
-                            // fallback: insert after last rule with complete rule text
-                            insertPosition = { line: lastRuleEnd.line + 1, character: lastRuleEnd.character ?? 0 };
-                        } else {
-                            // fallback: append to end of document (assume no Context-Table rules exist)
-                            const docText = document.getText();
-                            insertPosition = document.positionAt(docText.length);
-                            insertPosition.line += 2;
-                            insertText = "Context-Table\r\n" + insertText;
-                        }
+                    if (latestMatchingContextEnd) {
+                        // insert after that last UCA line
+                        insertPosition = { ...latestMatchingContextEnd };
+                        insertText = action.contextText; // only context text
+                    } else if (lastRuleEnd) {
+                        // fallback: insert after last rule with complete rule text
+                        insertPosition = { line: lastRuleEnd.line + 1, character: lastRuleEnd.character ?? 0 };
                     } else {
-                        // no rules present -> append to end of file
+                        // fallback: append to end of document (assume no Context-Table rules exist)
                         const docText = document.getText();
                         insertPosition = document.positionAt(docText.length);
                         insertPosition.line += 2;
                         insertText = "Context-Table\r\n" + insertText;
                     }
                 } else {
-                    console.warn("handleAddRule: no Langium doc available for", uriString);
-                    insertPosition = { line: 0, character: 0 };
+                    // no rules present -> append to end of file
+                    const docText = document.getText();
+                    insertPosition = document.positionAt(docText.length);
+                    insertPosition.line += 2;
+                    insertText = "Context-Table\r\n" + insertText;
                 }
+            } else {
+                console.warn("handleAddRule: no Langium doc available for", uriString);
+                insertPosition = { line: 0, character: 0 };
+            }
     
             // Send edit notification to extension
             this.connection?.sendNotification("editor/add", {

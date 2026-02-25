@@ -19,7 +19,6 @@ import { getColumnIndexForRule } from "./utils";
 import { ContextTableRule, ContextTableVariable, Type, ContextCell } from "./utils-classes";
 
 /**
-/**
  * Determines the used rules of {@code rules} and for which column they apply.
  * @param variables The variable values of the current row.
  * @param rules The available rules.
@@ -97,40 +96,6 @@ export function createResults(results: { hazards: string[]; rules: ContextTableR
                 });
             }
             i = j;
-        }
-    }
-    return cells;
-}
-
-/**
- * Creates the result cells.
- * @param results The hazards and rules for the result columns.
- * @returns The cells for the "Hazardous?"-column.
- */
-export function createResultsold(results: { hazards: string[]; rules: ContextTableRule[] }[]): ContextCell[] {
-    const cells: ContextCell[] = [];
-    // keeps track on how many neihbouring columns have no rule applied
-    let noAppliedRuleCounter: number = 0;
-
-    for (let hazardColumn = 0; hazardColumn < results.length; hazardColumn++) {
-        if (results[hazardColumn].rules.length === 0) {
-            noAppliedRuleCounter++;
-            if (hazardColumn + 1 === results.length) {
-                cells.push({ cssClass: "result", value: "No", colSpan: noAppliedRuleCounter});
-            }
-        } else {
-            if (noAppliedRuleCounter !== 0) {
-                cells.push({ cssClass: "result", value: "No", colSpan: noAppliedRuleCounter});
-                noAppliedRuleCounter = 0;
-            }
-            const ucas = results[hazardColumn].rules.map(rule => rule.id);
-
-            cells.push({
-                cssClass: "result",
-                value: ucas.toString(),
-                colSpan: 1,
-                title: results[hazardColumn].hazards.toString()
-            });
         }
     }
     return cells;

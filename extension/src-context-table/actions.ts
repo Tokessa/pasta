@@ -43,13 +43,16 @@ export namespace SendContextTableDataAction {
     }
 }
 
-/** Message to the language server to add a rule to the currently open file. */
+/** Message to the language server to add a rule to the currently open file. 
+ * @param ruleText is the complete string a new rule
+ * @param contextText is only the text of a rule inside the context
+*/
 export interface AddRuleAction extends Action {
     kind: typeof AddRuleAction.KIND;
     ruleText: string;
     contextText: string;
     type: string;
-    controlAction:ContextTableControlAction;
+    controlAction: ContextTableControlAction;
 }
 
 export namespace AddRuleAction {
@@ -58,8 +61,8 @@ export namespace AddRuleAction {
     export function create(ruleText: string, contextText: string, type: string, controlAction: ContextTableControlAction): AddRuleAction {
         return {
             kind: KIND,
-            ruleText: ruleText,
-            contextText: contextText,
+            ruleText,
+            contextText,
             type,
             controlAction
         };

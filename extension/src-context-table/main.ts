@@ -86,9 +86,9 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
 
     protected __mergeListenersInitialized = false;
 
+    // actions that are dispatched
     initialize(registry: ActionHandlerRegistry): void {
         registry.register(AddRuleAction.KIND, this);
-        registry.register(SendContextTableDataAction.KIND, this);
     }
 
     handle(action: Action): void | Action | ICommand {
@@ -99,6 +99,7 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
         return;
     }
 
+    // communication between extension host -> webview
     protected handleMessages(message: any): void {
         const action = message.data.action;
         if (action) {
@@ -443,7 +444,7 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
     }
 
      /**
-     * Functionthat visually merges contiguous result-no cells by creating one absolutely-positioned overlay element 
+     * Function that visually merges contiguous result-no cells by creating one absolutely-positioned overlay element 
      * that displays a single centered "No"
      * @param table The context table element
      */

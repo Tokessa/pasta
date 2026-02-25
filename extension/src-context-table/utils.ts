@@ -71,7 +71,7 @@ export function getColumnIndexForRule(rule: ContextTableRule, selectedType: Type
     
     for (const mapping of RULE_TYPE_MAPPINGS) {
         if (mapping.ruleTypes.includes(ruleType)) {
-            // exlude not-provided
+            // exclude not-provided
             if (selectedType === Type.PROVIDED && mapping.index < 3) {
                 return mapping.index;
             }
@@ -213,7 +213,7 @@ export function postAddRuleAction(detail: {
         // Build the full Rule text 
         const lines: string[] = [];
         lines.push(`${ruleName} {`);
-        lines.push(`\tcontrolAction: ${ selectedControlAction}`);
+        lines.push(`\tcontrolAction: ${selectedControlAction}`);
         lines.push(`\ttype: ${detail.type} // choose correct type`);
         lines.push(`\tcontexts: {`);
         lines.push(`\t\t${ctxName} [${assignedStr}] ${hazardListStr}`);

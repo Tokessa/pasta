@@ -130,6 +130,46 @@ export function createTHead(headers: VNode[]): VNode {
 }
 
 /**
+ * Function to create a plus button for a result cell. When the button is clicked, an AddRuleAction is posted to the extension with the details of the clicked cell.
+ * @param classes The classes of the cell.
+ * @param tdAttrs The attributes of the cell.
+ * @param val The current cell value.
+ * @param selectedType The currently selected type of the context table.
+ * @param counter The index of the result column for which the button is rendered.
+ * @param currentVariables The current process variables of the context table.
+ * @param selectedControlAction The currently selected control action.
+ * @returns a cell of a table as VNode
+ */
+function addPlusButton(classes: Classes, tdAttrs: any, val: ContextCell, selectedType: Type, counter: number, currentVariables: ContextTableVariableValues[], selectedControlAction: ContextTableControlAction): VNode {
+    return <td class={classes} attrs={{...tdAttrs, ucatype: getUCATypeString(selectedType, counter)}}>
+        <div class={{ resultCell: true }}>
+            <pre>{val.value}</pre>
+            <button
+                class={{ "result-plus": true }}
+                attrs={{ type: "button", title: "Hazardous actions", "aria-label": "Hazardous actions" }}
+                on={{
+                    click: (e: Event) => {
+                        // Prevent row-level handlers from being triggered
+                        e.stopPropagation();
+                        
+                        const target = e.currentTarget as HTMLElement;
+                        const type = (target.parentNode?.parentNode as HTMLElement)?.attributes.getNamedItem("ucatype")?.value;
+                        const details = {
+                            type: type ?? "",
+                            controlAction: selectedControlAction,
+                            varMap: createVarMap(currentVariables, getRowData(target))
+                        };
+                        postAddRuleAction(details);
+                    },
+                }}
+            >
+                { "+" }
+            </button>
+        </div>
+    </td>
+}
+
+/**
  * Creates a row of a table as VNode.
  * @param id Id of the row.
  * @param values The values of the row in the correct ordering.
@@ -155,42 +195,11 @@ export function createRow(id: string, values: ContextCell[], currentVariables: C
 
         // Render a small plus button for every result cell
         if (val.cssClass.startsWith("result")) {
-            children.push(
-                <td class={classes} attrs={{...tdAttrs, UCAType: getUCATypeString(selectedType, counter)}}>
-                    <div class={{ resultCell: true }}>
-                        <pre>{val.value}</pre>
-                        <button
-                            class={{ "result-plus": true }}
-                            attrs={{ type: "button", title: "Hazardous actions", "aria-label": "Hazardous actions" }}
-                            on={{
-                                click: (e: Event) => {
-                                    // Prevent row-level handlers from being triggered
-                                    e.stopPropagation();
-                                    
-                                    const target = e.currentTarget as HTMLElement;
-                                    const type = (target.parentNode?.parentNode as HTMLElement)?.attributes.getNamedItem("ucatype")?.value;
-                                    const details = {
-                                        type: type ?? "",
-                                        controlAction: selectedControlAction,
-                                        varMap: createVarMap(currentVariables, getRowData(target))
-                                    };
-                                    postAddRuleAction(details);
-                                },
-                            }}
-                        >
-                            { "+" }
-                        </button>
-                    </div>
-                </td>
-            );
+            children.push(addPlusButton(classes, tdAttrs, val, selectedType, counter, currentVariables, selectedControlAction));
             counter++;
         } else {
-                // default rendering for non-result cells
-            if (val.title) {
-                children.push(<td class={classes} attrs={{...tdAttrs}}>{val.value}</td>);
-            } else {
-                children.push(<td class={classes} attrs={{...tdAttrs}}>{val.value}</td>);
-            }
+            // default rendering for non-result cells
+            children.push(<td class={classes} attrs={{...tdAttrs}}>{val.value}</td>);
         }
     }
     const row = <tr attrs={{ id: id }}>{children}</tr>;

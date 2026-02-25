@@ -42,6 +42,9 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
     readonly storage: StorageService;
 
     protected extensionPrefix: string;
+    private readonly DIAGRAM_INITIALIZATION_DELAY_MS: number = 100; // Time in ms for server to initialize diagram
+    private readonly WEBVIEW_READY_RETRY_DELAY_MS: number = 300;
+    private readonly WEBVIEW_READY_MAX_RETRIES: number = 10;
 
     public contextTable: ContextTablePanel;
     /** Saves the last selected UCA in the context table. */
@@ -199,7 +202,7 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
         this.contextTable = tablePanel;
 
         // Forward incoming messages posted by the context-table webview to the language server
-        const attachContextTableForwarder = (panel: any): void => {
+        const attachContextTableForwarder = (panel: any, retryCount = 0): void => {
             if (panel && panel.webview) {
                 panel.webview.onDidReceiveMessage(async (message: any) => {
                     if (!message?.action) {return;}
@@ -220,7 +223,7 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
                                     } as UpdateDiagramAction,
                                 };
                                 this.languageClient.sendNotification(acceptMessageType, initMsg);
-                                await new Promise(resolve => setTimeout(resolve, 100));
+                                await new Promise(resolve => setTimeout(resolve, this.DIAGRAM_INITIALIZATION_DELAY_MS));
                         }
                         } catch (e) {
                             console.warn("Could not create context-table diagram identifier:", e);
@@ -239,7 +242,15 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
                     }
                 });
             } else {
-                setTimeout(() => attachContextTableForwarder(this.contextTable), 300);
+                // Retry with exponential backoff and max retries
+                if (retryCount < this.WEBVIEW_READY_MAX_RETRIES) {
+                    setTimeout(
+                        () => attachContextTableForwarder(panel, retryCount + 1),
+                        this.WEBVIEW_READY_RETRY_DELAY_MS
+                    );
+                } else {
+                    console.error("Context table webview failed to initialize after maximum retries");
+                }
             }
         };
         attachContextTableForwarder(this.contextTable);
