@@ -56,6 +56,7 @@ import { LangiumDocuments } from "langium";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { Model } from "./generated/ast.js";
 import { URI } from "vscode-uri";
+import { ContextTableRuleTextBuilder, AddRuleInput, GeneratedRuleTexts } from "./stpa/contextTable/rule-creation.js";
 
 // matches id of a node to its expansion state. True means expanded, false and undefined means collapsed
 export const expansionState = new Map<string, boolean>();
@@ -137,7 +138,6 @@ export class PastaDiagramServer extends SnippetDiagramServer {
     protected async handleAddRule(action: AddRuleAction & { sourceUri?: string }): Promise<void> {
         // Determine target URI
         const uri = action.sourceUri ?? this.options?.sourceUri;
-        let insertText = action.ruleText;
 
         if (!uri) {
             console.warn("handleAddRule: no target URI provided and no sourceUri in options.");
@@ -157,11 +157,22 @@ export class PastaDiagramServer extends SnippetDiagramServer {
         try {
             const langDocs = (this.language.shared.workspace as any).LangiumDocuments as LangiumDocuments;
             const langDoc = langDocs?.getDocument(parsedUri);
+            const builder = new ContextTableRuleTextBuilder(this.language as any); 
             let insertPosition: Position;
+            let insertText: string = "";
 
             if (langDoc) {
                 const document: TextDocument = langDoc.textDocument;
                 const model = langDoc.parseResult.value as Model;
+                const ruleInput: AddRuleInput = {
+                    type: action.type,
+                    controlAction: action.controlAction,
+                    varMap: action.varMap,
+                };
+                const generated: GeneratedRuleTexts = builder.generate(ruleInput);
+
+                // Default: insert full rule
+                insertText = generated.ruleText;
 
                 // If there are existing rules, inspect them for matching controlAction & type
                 if ((model as any).rules && (model as any).rules.length > 0) {
@@ -211,30 +222,34 @@ export class PastaDiagramServer extends SnippetDiagramServer {
                     if (latestMatchingContextEnd) {
                         // insert after that last UCA line
                         insertPosition = { ...latestMatchingContextEnd };
-                        insertText = action.contextText; // only context text
+                        insertText = generated.contextText; // only context text
                     } else if (lastRuleEnd) {
                         // fallback: insert after last rule with complete rule text
                         insertPosition = { line: lastRuleEnd.line + 1, character: lastRuleEnd.character ?? 0 };
+                        insertText = generated.ruleText;
                     } else {
                         // fallback: append to end of document (assume no Context-Table rules exist)
                         const docText = document.getText();
                         insertPosition = document.positionAt(docText.length);
                         insertPosition.line += 2;
-                        insertText = "Context-Table\r\n" + insertText;
+                        insertText = "Context-Table\r\n" + generated.ruleText;
                     }
                 } else {
                     // no rules present -> append to end of file
                     const docText = document.getText();
                     insertPosition = document.positionAt(docText.length);
                     insertPosition.line += 2;
-                    insertText = "Context-Table\r\n" + insertText;
+                    insertText = "Context-Table\r\n" + generated.ruleText;
                 }
             } else {
                 console.warn("handleAddRule: no Langium doc available for", uriString);
                 insertPosition = { line: 0, character: 0 };
             }
+
+            await builder.assertParsesAsStpaSnippet(
+                insertText.startsWith("Context-Table") ? insertText.replace(/^Context-Table\s*\r?\n/, "") : insertText
+            );
     
-            // Send edit notification to extension
             this.connection?.sendNotification("editor/add", {
                 uri: uri,
                 text: insertText,

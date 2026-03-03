@@ -130,28 +130,23 @@ export namespace HighlightUpdateAction {
     }
 }
 
-/** Adds a rule to the stpa file
- * @param ruleText is the complete string a new rule
- * @param contextText is only the text of a rule inside the context
-*/
+/** Adds a rule to the stpa file */
 export interface AddRuleAction extends Action {
     kind: typeof AddRuleAction.KIND;
-    ruleText: string;
-    contextText: string;
     type: string;
     controlAction: ContextTableControlAction;
+    varMap: Record<string, string>;
 }
 
 export namespace AddRuleAction {
     export const KIND = "addRule";
 
-    export function create(ruleText: string, contextText: string, type: string, controlAction: ContextTableControlAction): AddRuleAction {
+    export function create(type: string, controlAction: ContextTableControlAction, varMap: Record<string, string>): AddRuleAction {
         return {
             kind: KIND,
-            ruleText,
-            contextText,
             type,
-            controlAction
+            controlAction,
+            varMap,
         };
     }
 

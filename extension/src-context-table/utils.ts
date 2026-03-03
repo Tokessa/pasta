@@ -189,7 +189,7 @@ export function createVarMap(variables: ContextTableVariableValues[], selectedVa
 }
 
 /**
- * Function that post an AddRuleAction with the correct rule text to the language server.
+ * Function that post an AddRuleAction with the correct rule input to the language server.
  * @param detail The detail object containing the necessary information to build the rule.
  */
 export function postAddRuleAction(detail: {
@@ -198,31 +198,7 @@ export function postAddRuleAction(detail: {
         varMap: Record<string, string>;
     }): void {
     try {
-        const ruleName = "RL01";
-        const ctxName = "UCA01";
-        const hazardListStr = "[] // add fitting hazard";
-
-        // Build contexts section
-        const assignedPairs: string[] = [];
-        for (const [varName, varValue] of Object.entries(detail.varMap)) {
-            assignedPairs.push(`${varName}=${varValue}`);
-        }
-        const assignedStr = assignedPairs.join(",");
-        const selectedControlAction = detail.controlAction.controller + "." + detail.controlAction.action;
-
-        // Build the full Rule text 
-        const lines: string[] = [];
-        lines.push(`${ruleName} {`);
-        lines.push(`\tcontrolAction: ${selectedControlAction}`);
-        lines.push(`\ttype: ${detail.type} // choose correct type`);
-        lines.push(`\tcontexts: {`);
-        lines.push(`\t\t${ctxName} [${assignedStr}] ${hazardListStr}`);
-        lines.push(`\t}`);
-        lines.push(`}`);
-        const ruleText = lines.join("\r\n") + "\r\n";
-        const contextText = "\r\n" + `\t\t${ctxName} [${assignedStr}] ${hazardListStr}`;
-
-        const action = AddRuleAction.create(ruleText, contextText, detail.type, detail.controlAction);
+        const action = AddRuleAction.create(detail.type, detail.controlAction, detail.varMap);
         vscode.postMessage({ action });
     } catch (e) {
         console.error("post AddRuleAction failed:", e);
