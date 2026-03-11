@@ -32,6 +32,7 @@ import { createSBMs } from "./sbm/sbm-generation";
 import { LTLFormula } from "./sbm/utils";
 import { StorageService } from "./storage-service";
 import { createFile, createOutputChannel, setStorageOption } from "./utils";
+import { InlineMarkdownDecorator } from "./decorations";
 
 let languageClient: LanguageClient;
 
@@ -89,8 +90,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Create context key of supported languages
     vscode.commands.executeCommand("setContext", "pasta.languages", supportedFileEndings);
+    vscode.commands.executeCommand("setContext", "pasta.markersVisible", false);
 
     const storage = new StorageService(context.workspaceState);
+    let decorationProvider: InlineMarkdownDecorator | undefined;
+
+    decorationProvider = new InlineMarkdownDecorator();
+    context.subscriptions.push(decorationProvider);
 
     if (diagramMode === "panel") {
         // Set up webview panel manager for freestyle webviews
@@ -111,7 +117,7 @@ export function activate(context: vscode.ExtensionContext): void {
         registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: "pasta" });
 
         registerTextEditorSync(webviewPanelManager, context);
-        registerSTPACommands(webviewPanelManager, context, storage, { extensionPrefix: "pasta" });
+        registerSTPACommands(webviewPanelManager, context, storage, { extensionPrefix: "pasta" }, decorationProvider ?? undefined);
         registerFTACommands(webviewPanelManager, context, { extensionPrefix: "pasta" });
         registerDiagramSnippetWebview(webviewPanelManager, context);
         registerPastaCommands(webviewPanelManager, context, { extensionPrefix: "pasta" });
@@ -201,6 +207,11 @@ function resetContextForStorageOptions(): void {
     vscode.commands.executeCommand("setContext", "pasta.generateIDs", true);
 }
 
+async function setMarkersVisible(visible: boolean, decorationProvider: InlineMarkdownDecorator): Promise<void> {
+    decorationProvider.updateMarkerVisibility(visible);
+    await vscode.commands.executeCommand("setContext", "pasta.markersVisible", visible);
+}
+
 /**
  * Register all commands that are specific to STPA.
  * @param manager The manager that handles the webview panels.
@@ -212,8 +223,23 @@ function registerSTPACommands(
     manager: StpaLspVscodeExtension,
     context: vscode.ExtensionContext,
     storage: StorageService,
-    options: { extensionPrefix: string }
+    options: { extensionPrefix: string },
+    decorationProvider?: InlineMarkdownDecorator
 ): void {
+    if (decorationProvider) {
+        context.subscriptions.push(
+        vscode.commands.registerCommand("pasta.editor.editorMode", async () => {
+            await setMarkersVisible(false, decorationProvider);
+        })
+        );
+
+        context.subscriptions.push(
+        vscode.commands.registerCommand("pasta.editor.watchMode", async () => {
+            await setMarkersVisible(true, decorationProvider);
+        })
+        );
+    }
+
     context.subscriptions.push(
         vscode.commands.registerCommand(
             options.extensionPrefix + ".contextTable.open",
