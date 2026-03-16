@@ -90,11 +90,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Create context key of supported languages
     vscode.commands.executeCommand("setContext", "pasta.languages", supportedFileEndings);
+    vscode.commands.executeCommand("setContext", "pasta.highlightingActive", false);
     vscode.commands.executeCommand("setContext", "pasta.markersVisible", false);
 
     const storage = new StorageService(context.workspaceState);
-    let decorationProvider: InlineMarkdownDecorator | undefined;
+    let decorationProvider: InlineMarkdownDecorator | undefined; //use let, so can be commented out
 
+    // To deactivate highlighting in .stpa files comment out the following two lines
     decorationProvider = new InlineMarkdownDecorator();
     context.subscriptions.push(decorationProvider);
 
@@ -117,7 +119,12 @@ export function activate(context: vscode.ExtensionContext): void {
         registerDefaultCommands(webviewPanelManager, context, { extensionPrefix: "pasta" });
 
         registerTextEditorSync(webviewPanelManager, context);
-        registerSTPACommands(webviewPanelManager, context, storage, { extensionPrefix: "pasta" }, decorationProvider ?? undefined);
+        if (decorationProvider) {
+            vscode.commands.executeCommand("setContext", "pasta.highlightingActive", true);
+            registerSTPACommands(webviewPanelManager, context, storage, { extensionPrefix: "pasta" }, decorationProvider);
+        } else {
+            registerSTPACommands(webviewPanelManager, context, storage, { extensionPrefix: "pasta" });
+        }
         registerFTACommands(webviewPanelManager, context, { extensionPrefix: "pasta" });
         registerDiagramSnippetWebview(webviewPanelManager, context);
         registerPastaCommands(webviewPanelManager, context, { extensionPrefix: "pasta" });

@@ -16,12 +16,13 @@ export class InlineMarkdownDecorator {
     private readonly markerConfigs: readonly MarkerConfig[];
     private disposables: vscode.Disposable[] = [];
     private markerVisible: boolean = false;
+    private markerDecoration: vscode.TextEditorDecorationType;
+    private escapeDecoration: vscode.TextEditorDecorationType;
     private boldDecoration: vscode.TextEditorDecorationType;
     private italicDecoration: vscode.TextEditorDecorationType;
     private underlineDecoration: vscode.TextEditorDecorationType;
     private strikethroughDecoration: vscode.TextEditorDecorationType;
-    private markerDecoration: vscode.TextEditorDecorationType;
-    private escapeDecoration: vscode.TextEditorDecorationType;
+    
 
     constructor() {
         // Style to hide markers
@@ -309,7 +310,7 @@ export class InlineMarkdownDecorator {
         }
         decorations.forEach(d => d.dispose());
 
-        // dispose "utility" decorations
+        // dispose utility decorations
         this.markerDecoration.dispose();
         this.escapeDecoration.dispose();
     }
