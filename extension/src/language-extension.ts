@@ -205,52 +205,23 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
         const attachContextTableForwarder = (panel: any, retryCount = 0): void => {
             if (panel && panel.webview) {
                 panel.webview.onDidReceiveMessage(async (message: any) => {
-                    if (!message?.action) {return;}
+                    const payload = message?.addRule ?? message?.action;
+                    if (!payload) return;
 
-                    // Ensure we have a client id for the context-table, so we don't need the stpa diagram webview's id
-                    if (!this.contextTableClientId) {
-                        try {
-                            const identifier = await this.createDiagramIdentifier(uri);
-                            this.contextTableClientId = identifier?.clientId;
-
-                            if (this.contextTableClientId) {
-                                // Initialize server-side diagram instance with the sourceUri option.
-                                const initMsg: ActionMessage = {
-                                    clientId: this.contextTableClientId,
-                                    action: {
-                                        kind: UpdateDiagramAction.KIND,
-                                        options: { sourceUri: uri.toString() },
-                                    } as UpdateDiagramAction,
-                                };
-                                this.languageClient.sendNotification(acceptMessageType, initMsg);
-                                await new Promise(resolve => setTimeout(resolve, this.DIAGRAM_INITIALIZATION_DELAY_MS));
-                        }
-                        } catch (e) {
-                            console.warn("Could not create context-table diagram identifier:", e);
-                        }
-                    }
-
-                    if (this.contextTableClientId) {
-                        const actionPayload = { ...message.action, sourceUri: uri.toString() };
-                        const actionMessage: ActionMessage = {
-                            clientId: this.contextTableClientId,
-                            action: actionPayload,
-                        };
-                        this.languageClient.sendNotification(acceptMessageType, actionMessage);
-                    } else {
-                        console.warn("No context-table clientId available; cannot forward action to language server.");
-                    }
+                    this.languageClient.sendNotification("contextTable/addRule", {
+                        sourceUri: uri.toString(),
+                        type: payload.type,
+                        controlAction: payload.controlAction,
+                        varMap: payload.varMap
+                    });
                 });
+            } else if (retryCount < this.WEBVIEW_READY_MAX_RETRIES) {
+                setTimeout(
+                    () => attachContextTableForwarder(panel, retryCount + 1),
+                    this.WEBVIEW_READY_RETRY_DELAY_MS
+                );
             } else {
-                // Retry with exponential backoff and max retries
-                if (retryCount < this.WEBVIEW_READY_MAX_RETRIES) {
-                    setTimeout(
-                        () => attachContextTableForwarder(panel, retryCount + 1),
-                        this.WEBVIEW_READY_RETRY_DELAY_MS
-                    );
-                } else {
-                    console.error("Context table webview failed to initialize after maximum retries");
-                }
+                console.error("Context table webview failed to initialize after maximum retries");
             }
         };
         attachContextTableForwarder(this.contextTable);

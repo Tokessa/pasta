@@ -28,6 +28,7 @@ import { generateLTLFormulae } from "./modelChecking/model-checking.js";
 import { createResultData } from "./result-report/result-generator.js";
 import { StpaServices } from "./stpa-module.js";
 import { getControlActions } from "./utils.js";
+import { insertRuleFromContextTable } from "./contextTable/add-rule-handler.js"
 
 let lastUri: URI;
 
@@ -46,7 +47,7 @@ export function addSTPANotificationHandler(
     stpaServices: StpaServices,
     sharedServices: LangiumSprottySharedServices
 ): void {
-    addContextTableHandler(connection, stpaServices);
+    addContextTableHandler(connection, stpaServices, sharedServices);
     addTextChangeHandler(connection, stpaServices, sharedServices);
     addVerificationHandler(connection, sharedServices);
     addResultHandler(connection, sharedServices);
@@ -58,7 +59,7 @@ export function addSTPANotificationHandler(
  * @param connection
  * @param stpaServices
  */
-function addContextTableHandler(connection: Connection, stpaServices: StpaServices): void {
+function addContextTableHandler(connection: Connection, stpaServices: StpaServices, sharedServices: LangiumSprottySharedServices): void {
     // the data needed to create the context table is requested
     connection.onNotification("contextTable/getData", async uri => {
         // data is computed and send back to the extension
@@ -85,7 +86,17 @@ function addContextTableHandler(connection: Connection, stpaServices: StpaServic
             console.log("The selected UCA could not be found in the editor.");
         }
     });
+     // a rule should be added based on the context table input
+    connection.onNotification("contextTable/addRule", async (msg: {
+        sourceUri: string;
+        type: string;
+        controlAction: { controller: string; action: string };
+        varMap: Record<string, string>;
+    }) => {
+        await insertRuleFromContextTable(msg, stpaServices, connection);
+    });
 }
+
 
 /**
  * Adds handlers for notifications regarding changes in the editor.

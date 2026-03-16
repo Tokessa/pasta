@@ -17,7 +17,7 @@
 
 
 import { attributesModule, Classes, classModule, eventListenersModule, init, jsx, propsModule, styleModule, VNode } from 'snabbdom';
-import { createVarMap, getRowData, getUCATypeString, postAddRuleAction } from './utils';
+import { createVarMap, getRowData, getUCATypeString, postAddRule } from './utils';
 import { ContextTableVariableValues, ContextTableControlAction, Type, ContextCell } from './utils-classes';
 
 /** Needed to update the html document */
@@ -159,7 +159,7 @@ function addPlusButton(classes: Classes, tdAttrs: any, val: ContextCell, selecte
                             controlAction: selectedControlAction,
                             varMap: createVarMap(currentVariables, getRowData(target))
                         };
-                        postAddRuleAction(details);
+                        postAddRule(details);
                     },
                 }}
             >

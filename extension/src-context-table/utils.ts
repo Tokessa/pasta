@@ -19,7 +19,6 @@ import { VNode } from "snabbdom";
 import { createSelector, createText, patch } from "./html";
 import { ContextTableControlAction, ContextTableRule, ContextTableVariableValues, Type} from './utils-classes';
 import { RULE_TYPE_MAPPINGS, RuleType, VALID_RULE_TYPES } from "./utils-types";
-import { AddRuleAction } from "./actions";
 
 declare const vscode: { postMessage(message: any): void };
 
@@ -189,18 +188,17 @@ export function createVarMap(variables: ContextTableVariableValues[], selectedVa
 }
 
 /**
- * Function that post an AddRuleAction with the correct rule input to the language server.
+ * Function that post a message with the correct rule input to the language server.
  * @param detail The detail object containing the necessary information to build the rule.
  */
-export function postAddRuleAction(detail: {
+export function postAddRule(detail: {
         type: string;
         controlAction: ContextTableControlAction;
         varMap: Record<string, string>;
     }): void {
     try {
-        const action = AddRuleAction.create(detail.type, detail.controlAction, detail.varMap);
-        vscode.postMessage({ action });
+        vscode.postMessage({ addRule: detail });
     } catch (e) {
-        console.error("post AddRuleAction failed:", e);
+        console.error("post addRule failed:", e);
     }
 }

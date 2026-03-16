@@ -42,28 +42,3 @@ export namespace SendContextTableDataAction {
         return action.kind === SendContextTableDataAction.KIND;
     }
 }
-
-/** Message to the language server to add a rule to the currently open file. */
-export interface AddRuleAction extends Action {
-    kind: typeof AddRuleAction.KIND;
-    type: string;
-    controlAction: ContextTableControlAction;
-    varMap: Record<string, string>;
-}
-
-export namespace AddRuleAction {
-    export const KIND = "addRule";
-
-    export function create(type: string, controlAction: ContextTableControlAction, varMap: Record<string, string>): AddRuleAction {
-        return {
-            kind: KIND,
-            type,
-            controlAction,
-            varMap,
-        };
-    }
-
-    export function isThisAction(action: Action): action is AddRuleAction {
-        return action.kind === AddRuleAction.KIND;
-    }
-}
