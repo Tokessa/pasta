@@ -81,13 +81,13 @@
                 "command": "pasta.editor.editorMode",
                 "title": "Switch to read mode",
                 "icon": "$(edit)",
-                "category": ""
+                "category": "navigation"
             },
             {
                 "command": "pasta.editor.watchMode",
                 "title": "Switch to editor mode",
                 "icon": "$(book)",
-                "category": ""
+                "category": "navigation"
             },
             {
                 "command": "pasta.diagram.fit",
@@ -458,12 +458,12 @@
                 },
                 {
                     "command": "pasta.editor.editorMode",
-                    "when": "editorLangId == 'stpa' && pasta.markersVisible",
+                    "when": "pasta.highlightingActive && editorLangId == 'stpa' && pasta.markersVisible",
                     "group": "navigation"
                 },
                 {
                     "command": "pasta.editor.watchMode",
-                    "when": "editorLangId == 'stpa' && !pasta.markersVisible",
+                    "when": "pasta.highlightingActive && editorLangId == 'stpa' && !pasta.markersVisible",
                     "group": "navigation"
                 }
             ],
