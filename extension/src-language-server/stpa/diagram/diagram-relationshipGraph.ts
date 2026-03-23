@@ -41,6 +41,8 @@ import {
     getTargets,
     setLevelsForSTPANodes,
 } from "./utils.js";
+import { LangiumDocument } from "langium";
+import { getRawStringInnerFromCst } from "../../utils.js";
 
 /**
  * Creates the relationship graph for the STPA model.
@@ -375,7 +377,7 @@ export function generateSTPANode(
         node.name,
         options,
         idCache,
-        isContext(node) ? createUCAContextDescription(node) : node.description
+        isContext(node) ? createUCAContextDescription(node) : getRawStringInnerFromCst(node) ?? node.description ?? ""
     );
     // if the hierarchy option is true, the subcomponents are added as children to the parent
     if (options.getHierarchy() && isHazard(node) && node.subComponents.length !== 0) {

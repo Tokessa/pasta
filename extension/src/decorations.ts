@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 
-function escapeForRegexLiteral(s: string): string {
+export function escapeForRegexLiteral(s: string): string {
     return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-type MarkerConfig = {
+export type MarkerConfig = {
   marker: string;
   /** Decoration applied to the content (between markers). */
   decoration: vscode.TextEditorDecorationType;
@@ -12,8 +12,14 @@ type MarkerConfig = {
   doubleDecoration?: vscode.TextEditorDecorationType;
 };
 
+// single truth for marker to decoration mapping, used by both the decorator and the stripping function
+export const singleMarkerConfigs: readonly MarkerConfig[] = [
+    { marker: "_", decoration: null as any },
+    { marker: "~", decoration: null as any },
+    { marker: "*", decoration: null as any, doubleDecoration: null as any },
+] as const;
+
 export class InlineMarkdownDecorator {
-    private readonly markerConfigs: readonly MarkerConfig[];
     private disposables: vscode.Disposable[] = [];
     private markerVisible: boolean = false;
     private markerDecoration: vscode.TextEditorDecorationType;
@@ -53,14 +59,6 @@ export class InlineMarkdownDecorator {
         this.strikethroughDecoration = vscode.window.createTextEditorDecorationType({
             textDecoration: 'line-through'
         });
-
-        // single truth for marker to decoration mapping
-        this.markerConfigs = [
-            { marker: "_", decoration: this.underlineDecoration },
-            { marker: "~", decoration: this.strikethroughDecoration },
-            { marker: "*", decoration: this.italicDecoration, doubleDecoration: this.boldDecoration },
-        ] as const;
-
 
         // Update decorations when document changes
         this.disposables.push(
@@ -138,7 +136,7 @@ export class InlineMarkdownDecorator {
         stringContent: string,
         stringStartOffset: number,
         allEscapeRanges: { range: vscode.Range; fullStart: number; fullEnd: number }[],
-        markerConfigs: readonly MarkerConfig[] = this.markerConfigs
+        markerConfigs: readonly MarkerConfig[] = singleMarkerConfigs
     ): void {
         // Use a Set to avoid duplicates 
         const markers = new Set<string>(markerConfigs.map(c => c.marker));
@@ -256,7 +254,7 @@ export class InlineMarkdownDecorator {
             const stringContent = stringMatch[1] || stringMatch[2];
             const stringStartOffset = stringMatch.index + 1;
 
-            for (const cfg of this.markerConfigs) {
+            for (const cfg of singleMarkerConfigs) {
                 this.addDecorationsFromConfig(
                     editor,
                     stringContent,
@@ -302,7 +300,7 @@ export class InlineMarkdownDecorator {
 
         // dispose marker content decorations from config
         const decorations = new Set<vscode.TextEditorDecorationType>();
-        for (const cfg of this.markerConfigs) {
+        for (const cfg of singleMarkerConfigs) {
             decorations.add(cfg.decoration);
             if (cfg.doubleDecoration) {
                 decorations.add(cfg.doubleDecoration);

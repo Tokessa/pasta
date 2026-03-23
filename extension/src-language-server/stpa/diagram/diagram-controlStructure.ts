@@ -36,6 +36,7 @@ import {
 } from "./stpa-model.js";
 import { StpaSynthesisOptions } from "./stpa-synthesis-options.js";
 import { getCommonAncestor, sortPorts } from "./utils.js";
+import { getRawStringInnerFromCst, stripInlineMarkers } from "../../utils.js";
 
 /**
  * Creates the control structure diagram for the given {@code controlStructure}.
@@ -263,7 +264,9 @@ export function translateCommandsToEdges(
             const label: string[] = [];
             for (let i = 0; i < edge.comms.length; i++) {
                 const com = edge.comms[i];
-                label.push(com.label);
+                const raw = getRawStringInnerFromCst(com) ?? com.label ?? "";
+                const stripped = stripInlineMarkers(raw);
+                label.push(stripped);
             }
             createEdgeForCommand(source, target, edgeId, edgeType, label, idToSNode, idCache, edges, controlActions);
         }
@@ -371,8 +374,10 @@ export function translateIOToEdgeAndNode(
         // create the label of the edge
         const label: string[] = [];
         for (let i = 0; i < io.length; i++) {
-            const command = io[i];
-            label.push(command.label);
+            const com = io[i];
+            const raw = getRawStringInnerFromCst(com) ?? com.label ?? "";
+            const stripped = stripInlineMarkers(raw);
+            label.push(stripped);
         }
 
         let graphComponents: (CSNode | CSEdge)[] = [];
