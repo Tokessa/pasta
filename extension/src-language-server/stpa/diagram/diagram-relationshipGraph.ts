@@ -41,7 +41,6 @@ import {
     getTargets,
     setLevelsForSTPANodes,
 } from "./utils.js";
-import { LangiumDocument } from "langium";
 import { getRawStringInnerFromCst } from "../../utils.js";
 
 /**

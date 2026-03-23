@@ -77,8 +77,10 @@ export function getRawStringInnerFromCst(node: any): string | undefined {
         const stack: any[] = [cst];
         while (stack.length > 0) {
             const n = stack.pop();
-            if (!n) continue;
-
+            if (!n) {
+                continue;
+            }
+            
             // If composite node with children, push them
             if (Array.isArray((n as any).children) && (n as any).children.length > 0) {
                 for (let i = (n as any).children.length - 1; i >= 0; --i) {
