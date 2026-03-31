@@ -22,7 +22,11 @@ import { SLabel } from "sprotty-protocol";
 import { URI } from "vscode-uri";
 import { StpaValidator } from "./stpa/services/stpa-validator.js";
 import { labelManagementValue } from "./synthesis-options.js";
-import { MarkerConfig, singleMarkerConfigs, escapeForRegexLiteral } from "../src/decorations.js";
+import { MarkerDefinition, INLINE_MARKER_DEFINITIONS } from "../src/utils-classes.js";
+
+function escapeForRegexLiteral(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /**
  * Removes all markdown-style markers that would be hidden by the InlineMarkdownDecorator.
@@ -32,7 +36,7 @@ import { MarkerConfig, singleMarkerConfigs, escapeForRegexLiteral } from "../src
  */
 export function stripInlineMarkers(
     input: string,
-    markerConfigs: readonly MarkerConfig[] = singleMarkerConfigs
+    markerConfigs: readonly MarkerDefinition[] = INLINE_MARKER_DEFINITIONS
 ): string {
     let result = input;
 
@@ -56,7 +60,6 @@ export function stripInlineMarkers(
         
         result = result.replace(escapeRegex, "$1");
     }
-
     return result;
 }
 

@@ -1,68 +1,68 @@
-import * as vscode from "vscode";
+import { Disposable, TextEditorDecorationType, Range, TextEditor, window, workspace } from "vscode";
+import { INLINE_MARKER_DEFINITIONS, type MarkerConfig } from "./utils-classes";
 
-export function escapeForRegexLiteral(s: string): string {
+function escapeForRegexLiteral(s: string): string {
     return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export type MarkerConfig = {
-  marker: string;
-  /** Decoration applied to the content (between markers). */
-  decoration: vscode.TextEditorDecorationType;
-  /** Optional: if defined, treat markerCount==2 as this decoration, and >=3 as both. */
-  doubleDecoration?: vscode.TextEditorDecorationType;
-};
-
-// single truth for marker to decoration mapping, used by both the decorator and the stripping function
-export const singleMarkerConfigs: readonly MarkerConfig[] = [
-    { marker: "_", decoration: null as any },
-    { marker: "~", decoration: null as any },
-    { marker: "*", decoration: null as any, doubleDecoration: null as any },
-] as const;
-
 export class InlineMarkdownDecorator {
-    private disposables: vscode.Disposable[] = [];
+    private readonly markerConfigs: readonly MarkerConfig<TextEditorDecorationType>[];
+    private disposables: Disposable[] = [];
     private markerVisible: boolean = false;
-    private markerDecoration: vscode.TextEditorDecorationType;
-    private escapeDecoration: vscode.TextEditorDecorationType;
-    private boldDecoration: vscode.TextEditorDecorationType;
-    private italicDecoration: vscode.TextEditorDecorationType;
-    private underlineDecoration: vscode.TextEditorDecorationType;
-    private strikethroughDecoration: vscode.TextEditorDecorationType;
+    private markerDecoration: TextEditorDecorationType;
+    private escapeDecoration: TextEditorDecorationType;
+    private boldDecoration: TextEditorDecorationType;
+    private italicDecoration: TextEditorDecorationType;
+    private underlineDecoration: TextEditorDecorationType;
+    private strikethroughDecoration: TextEditorDecorationType;
     
 
     constructor() {
         // Style to hide markers
-        this.markerDecoration = vscode.window.createTextEditorDecorationType({
+        this.markerDecoration = window.createTextEditorDecorationType({
             textDecoration: 'none; font-size: 0;',
             color: 'transparent'
         });
 
         // Style to hide escape backslashes
-        this.escapeDecoration = vscode.window.createTextEditorDecorationType({
+        this.escapeDecoration = window.createTextEditorDecorationType({
             color: 'transparent',
             textDecoration: 'none; font-size: 0;',
         });
 
-        this.boldDecoration = vscode.window.createTextEditorDecorationType({
+        this.boldDecoration = window.createTextEditorDecorationType({
             fontWeight: 'bold',
             textDecoration: 'none; text-shadow: 0 0 0.75px currentColor, 0 0 0.75px currentColor;'
         });
 
-        this.italicDecoration = vscode.window.createTextEditorDecorationType({
+        this.italicDecoration = window.createTextEditorDecorationType({
             fontStyle: 'italic'
         });
 
-        this.underlineDecoration = vscode.window.createTextEditorDecorationType({
+        this.underlineDecoration = window.createTextEditorDecorationType({
             textDecoration: 'underline'
         });
 
-        this.strikethroughDecoration = vscode.window.createTextEditorDecorationType({
+        this.strikethroughDecoration = window.createTextEditorDecorationType({
             textDecoration: 'line-through'
         });
 
+        // shared marker list; add here decorations for markers
+        this.markerConfigs = INLINE_MARKER_DEFINITIONS.map(({ marker }) => {
+            if (marker === "_") {
+                return { marker, decoration: this.underlineDecoration };
+            }
+            else if (marker === "~") {
+                return { marker, decoration: this.strikethroughDecoration };
+            } else {
+                return { marker, decoration: this.italicDecoration, doubleDecoration: this.boldDecoration};
+            }
+        });
+
+
         // Update decorations when document changes
         this.disposables.push(
-            vscode.window.onDidChangeActiveTextEditor(editor => {
+            window.onDidChangeActiveTextEditor(editor => {
                 if (editor) {
                     this.updateDecorations(editor);
                 }
@@ -71,15 +71,15 @@ export class InlineMarkdownDecorator {
 
         // Update decorations when cursor position changes
         this.disposables.push(
-            vscode.window.onDidChangeTextEditorSelection(event => {
+            window.onDidChangeTextEditorSelection(event => {
                 // console.log('Cursor moved, updating decorations');
                 this.updateDecorations(event.textEditor);
             })
         );
 
         this.disposables.push(
-            vscode.workspace.onDidChangeTextDocument(event => {
-                const editor = vscode.window.activeTextEditor;
+            workspace.onDidChangeTextDocument(event => {
+                const editor = window.activeTextEditor;
                 if (editor && event.document === editor.document) {
                     this.updateDecorations(editor);
                 }
@@ -87,8 +87,8 @@ export class InlineMarkdownDecorator {
         );
 
         // Initial decoration
-        if (vscode.window.activeTextEditor) {
-            this.updateDecorations(vscode.window.activeTextEditor);
+        if (window.activeTextEditor) {
+            this.updateDecorations(window.activeTextEditor);
         }
     }
 
@@ -98,7 +98,7 @@ export class InlineMarkdownDecorator {
      */
     public updateMarkerVisibility(markersVisible: boolean): void {
         this.markerVisible = markersVisible;
-        const editor = vscode.window.activeTextEditor;
+        const editor = window.activeTextEditor;
         if (editor) {
              this.updateDecorations(editor); // pass as param
         }
@@ -111,9 +111,9 @@ export class InlineMarkdownDecorator {
      * @param range the range to add for the decoration type
      */
     private pushRange(
-        map: Map<vscode.TextEditorDecorationType, vscode.Range[]>,
-        decoration: vscode.TextEditorDecorationType,
-        range: vscode.Range
+        map: Map<TextEditorDecorationType, Range[]>,
+        decoration: TextEditorDecorationType,
+        range: Range
     ): void {
         const arr = map.get(decoration);
         if (arr) {
@@ -132,11 +132,11 @@ export class InlineMarkdownDecorator {
      * @param markerConfigs The marker configurations to determine which escape sequences to look for. If not provided, uses the default markerConfigs of the class.
      */
     private collectStandaloneEscapesInString(
-        editor: vscode.TextEditor,
+        editor: TextEditor,
         stringContent: string,
         stringStartOffset: number,
-        allEscapeRanges: { range: vscode.Range; fullStart: number; fullEnd: number }[],
-        markerConfigs: readonly MarkerConfig[] = singleMarkerConfigs
+        allEscapeRanges: { range: Range; fullStart: number; fullEnd: number }[],
+        markerConfigs: readonly MarkerConfig<TextEditorDecorationType>[] = this.markerConfigs
     ): void {
         // Use a Set to avoid duplicates 
         const markers = new Set<string>(markerConfigs.map(c => c.marker));
@@ -157,7 +157,7 @@ export class InlineMarkdownDecorator {
             const bsEnd = editor.document.positionAt(backslashOffset + 1); // backslash only
 
             allEscapeRanges.push({
-                range: new vscode.Range(bsStart, bsEnd),
+                range: new Range(bsStart, bsEnd),
                 // cover the whole two-character escape sequence "\X"
                 fullStart: backslashOffset,
                 fullEnd: backslashOffset + 2,
@@ -175,12 +175,12 @@ export class InlineMarkdownDecorator {
      * @param decorationRangesByDecoration A map of decoration types to their ranges.
      */
     private addDecorationsFromConfig(
-        editor: vscode.TextEditor,
+        editor: TextEditor,
         stringContent: string,
         stringStartOffset: number,
-        config: MarkerConfig,
-        allMarkerRanges: { range: vscode.Range; fullStart: number; fullEnd: number }[],
-        decorationRangesByDecoration: Map<vscode.TextEditorDecorationType, vscode.Range[]>
+        config: MarkerConfig<TextEditorDecorationType>,
+        allMarkerRanges: { range: Range; fullStart: number; fullEnd: number }[],
+        decorationRangesByDecoration: Map<TextEditorDecorationType, Range[]>
     ): void {
         const escapedMarker = escapeForRegexLiteral(config.marker);
         const regex = new RegExp(`(?<!\\\\)(${escapedMarker}+)(.+?)(?<!\\\\)\\1(?!${escapedMarker})`, "g");
@@ -199,7 +199,7 @@ export class InlineMarkdownDecorator {
             const contentStart = editor.document.positionAt(fullStartOffset + markerCount);
             const contentEnd = editor.document.positionAt(fullEndOffset - markerCount);
 
-            const contentRange = new vscode.Range(contentStart, contentEnd);
+            const contentRange = new Range(contentStart, contentEnd);
 
             // Decide which decoration(s) apply to content:
             if (config.doubleDecoration) {
@@ -217,8 +217,8 @@ export class InlineMarkdownDecorator {
             }
 
             // Marker ranges (for hiding)
-            const startMarkerRange = new vscode.Range(fullStart, contentStart);
-            const endMarkerRange = new vscode.Range(contentEnd, fullEnd);
+            const startMarkerRange = new Range(fullStart, contentStart);
+            const endMarkerRange = new Range(contentEnd, fullEnd);
 
             allMarkerRanges.push({ 
                 range: startMarkerRange, 
@@ -237,15 +237,15 @@ export class InlineMarkdownDecorator {
      * Main function to update decorations in the editor. It finds all strings, applies decorations based on markers, and handles marker visibility based on cursor position.
      * @param editor The text editor to update decorations for.
      */
-    private updateDecorations(editor: vscode.TextEditor): void {
+    private updateDecorations(editor: TextEditor): void {
         const text = editor.document.getText();
         const cursorOffset = editor.document.offsetAt(editor.selection.active);
 
-        const allMarkerRanges: { range: vscode.Range; fullStart: number; fullEnd: number }[] = [];
-        const allEscapeRanges: { range: vscode.Range; fullStart: number; fullEnd: number }[] = [];
+        const allMarkerRanges: { range: Range; fullStart: number; fullEnd: number }[] = [];
+        const allEscapeRanges: { range: Range; fullStart: number; fullEnd: number }[] = [];
 
         // Stores content ranges per decoration type
-        const decorationRangesByDecoration = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
+        const decorationRangesByDecoration = new Map<TextEditorDecorationType, Range[]>();
 
         const stringRegex = /"([^"]*)"|'([^']*)'/g;
         let stringMatch: RegExpExecArray | null;
@@ -254,7 +254,7 @@ export class InlineMarkdownDecorator {
             const stringContent = stringMatch[1] || stringMatch[2];
             const stringStartOffset = stringMatch.index + 1;
 
-            for (const cfg of singleMarkerConfigs) {
+            for (const cfg of this.markerConfigs) {
                 this.addDecorationsFromConfig(
                     editor,
                     stringContent,
@@ -299,8 +299,8 @@ export class InlineMarkdownDecorator {
         this.disposables.forEach(d => d.dispose());
 
         // dispose marker content decorations from config
-        const decorations = new Set<vscode.TextEditorDecorationType>();
-        for (const cfg of singleMarkerConfigs) {
+        const decorations = new Set<TextEditorDecorationType>();
+        for (const cfg of this.markerConfigs) {
             decorations.add(cfg.decoration);
             if (cfg.doubleDecoration) {
                 decorations.add(cfg.doubleDecoration);
