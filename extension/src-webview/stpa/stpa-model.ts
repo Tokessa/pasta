@@ -58,6 +58,7 @@ export class STPANode extends SNodeImpl {
     controlAction?: string;
     modelOrder?: boolean;
     controller?: string;
+    missingReference?: boolean;
 }
 
 /**
@@ -105,6 +106,7 @@ export class EdgeLabel extends SLabelImpl {
         side: "on",
     };
     controlAction?: string;
+    missingReference?: boolean;
 }
 
 /**

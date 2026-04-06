@@ -15,7 +15,7 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
-import { Point, SEdge, SNode, SPort } from "sprotty-protocol";
+import { Point, SEdge, SLabel, SNode, SPort } from "sprotty-protocol";
 import { EdgeType, PortSide, STPAAspect } from "./stpa-model.js";
 
 export interface ParentNode extends SNode {
@@ -36,6 +36,7 @@ export interface STPANode extends SNode {
     controlAction?: string;
     modelOrder?: boolean;
     controller?: string;
+    missingReference?: boolean;
 }
 
 /**
@@ -69,4 +70,12 @@ export interface CSNode extends SNode {
  */
 export interface CSEdge extends SEdge {
     edgeType: EdgeType;
+}
+
+
+/**
+ * Label in control structure for missing references of control actions.
+ */
+export interface CSLabel extends SLabel {
+    missingReference?: boolean;
 }

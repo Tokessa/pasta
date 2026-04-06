@@ -19,7 +19,7 @@ import { AstNode } from "langium";
 import { IdCache } from "langium-sprotty";
 import { SLabel, SModelElement, SNode } from "sprotty-protocol";
 import { getDescription } from "../../utils.js";
-import { CSEdge, CSNode, PastaPort, STPAEdge, STPANode } from "./stpa-interfaces.js";
+import { CSEdge, CSNode, CSLabel, PastaPort, STPAEdge, STPANode } from "./stpa-interfaces.js";
 import {
     DUMMY_NODE_TYPE,
     EDGE_LABEL_TYPE,
@@ -40,6 +40,7 @@ import { getAspect } from "./utils.js";
  * @param nodeId The ID of the STPANode.
  * @param lvl The hierarchy level of the STPANode.
  * @param children The children of the STPANode.
+ * @param missing [optional] Determines whether the node for which the STPANode should be created has a missing reference or not.
  * @returns an STPANode.
  */
 export function createSTPANode(
@@ -48,7 +49,8 @@ export function createSTPANode(
     lvl: number,
     description: string,
     children: SModelElement[],
-    options: StpaSynthesisOptions
+    options: StpaSynthesisOptions,
+    missing?: boolean,
 ): STPANode {
     return {
         type: STPA_NODE_TYPE,
@@ -65,6 +67,7 @@ export function createSTPANode(
             paddingRight: 10.0,
         },
         modelOrder: options.getModelOrder(),
+        missingReference: missing ?? false,
     };
 }
 
@@ -121,6 +124,7 @@ export function createSTPAEdge(
  * @param edgeType The type of the edge (control action or feedback edge).
  * @param idCache The ID cache of the STPA model.
  * @param controlActions [optional] List of all the control actions with source from one CSEdge.
+ * @param isReferenceMissing [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not.
  * @returns A control structure edge.
  */
 export function createControlStructureEdge(
@@ -132,7 +136,8 @@ export function createControlStructureEdge(
     sedgeType: string,
     idCache: IdCache<AstNode>,
     dummyLabel: boolean = true,
-    controlActions?: string[]
+    controlActions?: string[],
+    isReferenceMissing?: boolean[],
 ): CSEdge {
     return {
         type: sedgeType,
@@ -140,7 +145,7 @@ export function createControlStructureEdge(
         sourceId: sourceId!,
         targetId: targetId!,
         edgeType: edgeType,
-        children: createLabel(label, edgeId, idCache, EDGE_LABEL_TYPE, dummyLabel, controlActions), 
+        children: createLabel(label, edgeId, idCache, EDGE_LABEL_TYPE, dummyLabel, controlActions, isReferenceMissing), 
     };
 }
 
@@ -192,6 +197,7 @@ export function createInvisibleProcessModelEdge(
  * @param type The type of the label.
  * @param dummyLabel Determines whether a dummy label should be created to get a correct layout.
  * @param controlActions [optional] List of all the control actions with source from one CSEdge.
+ * @param isReferenceMissing [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not.
  * @returns SLabel elements representing {@code label}.
  */
 export function createLabel(
@@ -200,17 +206,19 @@ export function createLabel(
     idCache: IdCache<AstNode>,
     type: string,
     dummyLabel: boolean = true,
-    controlActions?: string[]
-): SLabel[] {
-    const children: SLabel[] = [];
+    controlActions?: string[],
+    isReferenceMissing?: boolean[],
+): CSLabel[] {
+    const children: CSLabel[] = [];
     if (label.find(l => l !== "")) {
         label.forEach((l, index) => {
             children.push({
                 type: type,
                 id: idCache.uniqueId(id + "_label"),
                 text: l,
-                controlAction: controlActions?.[index] ?? ""
-            } as SLabel);
+                controlAction: controlActions?.[index] ?? "",
+                isReferenceMissing: isReferenceMissing ? isReferenceMissing[index] : false,
+            } as CSLabel); 
         });
     } else if (dummyLabel) {
         // needed for correct layout
@@ -218,7 +226,7 @@ export function createLabel(
             type: type,
             id: idCache.uniqueId(id + "_label"),
             text: " ",
-        } as SLabel);
+        } as CSLabel);
     }
     return children;
 }
