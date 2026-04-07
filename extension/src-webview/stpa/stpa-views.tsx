@@ -422,7 +422,7 @@ export class EdgeLabelView extends SLabelView {
         // label belongs to an edge which may be a missing feedback edge
         const edgeMissingFeedback = (label.parent.type === CS_EDGE_TYPE || label.parent.type === CS_INTERMEDIATE_EDGE_TYPE) && (label.parent as CSEdge).edgeType === EdgeType.MISSING_FEEDBACK;
         const missingFeedbackLabel = nodeMissingFeedback || edgeMissingFeedback;
-        const missingReference = label.missingReference;
+        const missingReference = label.isReferenceMissing;
 
         const vnode = super.render(label, context);
         if (vnode?.data?.class) {

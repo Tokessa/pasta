@@ -106,7 +106,7 @@ export class EdgeLabel extends SLabelImpl {
         side: "on",
     };
     controlAction?: string;
-    missingReference?: boolean;
+    isReferenceMissing?: boolean;
 }
 
 /**

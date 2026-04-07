@@ -46,7 +46,8 @@ text tspan.process-model-value {
 
 .missing-reference { 
   stroke-width: 5 !important;
-  fill: var(--vscode-gauge-errorBackground) /* TODO: testing-iconErrored, statusBarItem-errorHoverBackground, editorMarkerNavigationError-headerBackground, editorMarkerNavigationError-background, minimap-errorHighlight, inputValidation-errorBackground, inputValidation-errorBorder*/
+  fill: var(--vscode-inputValidation-errorBackground);
+  /*fill: color-mix(in srgb, var(--vscode-inputValidation-errorBorder) 50%, transparent); TODO: testing-iconErrored, statusBarItem-errorHoverBackground, editorMarkerNavigationError-headerBackground, editorMarkerNavigationError-background, minimap-errorHighlight, inputValidation-errorBorder, inputValidation-errorBackground, gauge-errorBackground*/
 }
 
 .missing-reference-label {
