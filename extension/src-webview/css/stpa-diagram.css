@@ -44,10 +44,10 @@ text tspan.process-model-value {
     stroke: var(--vscode-editor-foreground);
 }
 
-.missing-reference { 
-  stroke-width: 5 !important;
-  fill: var(--vscode-inputValidation-errorBackground);
-  /*fill: color-mix(in srgb, var(--vscode-inputValidation-errorBorder) 50%, transparent); TODO: testing-iconErrored, statusBarItem-errorHoverBackground, editorMarkerNavigationError-headerBackground, editorMarkerNavigationError-background, minimap-errorHighlight, inputValidation-errorBorder, inputValidation-errorBackground, gauge-errorBackground*/
+/* red highlighting for visualization of missing references */
+.missing-reference .sprotty-label {
+fill: var(--vscode-editorError-foreground) !important;
+font-weight: 700;
 }
 
 .missing-reference-label {
@@ -57,22 +57,22 @@ text tspan.process-model-value {
 
 /* red highlighting for visualization of missing feedback edges */
 .missing-feedback-label {
-    fill: red !important;
+    fill: var(--vscode-editorError-foreground) !important;
 }
 
 .missing-feedback-node {
-    stroke: red !important;
+    stroke: var(--vscode-editorError-foreground) !important;
     stroke-width: 3 !important;
 }
 
 .missing-edge {
-    stroke: red !important;
+    stroke: var(--vscode-editorError-foreground) !important;
     stroke-width: 3 !important;
 }
 
 .missing-edge-arrow {
-    stroke: red !important;
-    fill: red !important;
+    stroke: var(--vscode-editorError-foreground) !important;
+    fill: var(--vscode-editorError-foreground) !important;
 }
 
 /* Feedback edges */
