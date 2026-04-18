@@ -58,7 +58,7 @@ export class STPANode extends SNodeImpl {
     controlAction?: string;
     modelOrder?: boolean;
     controller?: string;
-    missingReference?: boolean;
+    missingReference?: [isMissing: boolean, warning: string];
 }
 
 /**

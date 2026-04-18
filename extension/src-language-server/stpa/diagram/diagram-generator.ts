@@ -133,7 +133,6 @@ export class StpaDiagramGenerator extends SnippetGraphGenerator {
     protected generateRoot(args: GeneratorContext<Model>): SModelRoot {
         // Extract and remove highlightedIDs from args.state.options
         const highlightedIds = args.state.options?.highlightedIDs as string[] | undefined;
-
         if (args.state.options && 'highlightedIDs' in args.state.options) {
             delete args.state.options.highlightedIDs;
         }
@@ -172,14 +171,14 @@ export class StpaDiagramGenerator extends SnippetGraphGenerator {
                     this.idToSNode,
                     this.options,
                     this.idCache,
-                    this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Set<string>(),
+                    this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Map<string, string>(),
                     this.options.getShowUnclosedFeedbackLoopsOption(),
                     this.services.validation.StpaValidator.missingFeedback
                 )
             );
         }
         // add relationship graph to roots children
-        rootChildren.push(createRelationshipGraph(filteredModel, model, this.idToSNode, this.options, this.idCache, this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Set<string>(),highlightedIDs ?? [],));
+        rootChildren.push(createRelationshipGraph(filteredModel, model, this.idToSNode, this.options, this.idCache, this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Map<string, string>(), highlightedIDs ?? [],));
         // return root
         return {
             type: "graph",

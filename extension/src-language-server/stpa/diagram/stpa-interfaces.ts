@@ -36,7 +36,7 @@ export interface STPANode extends SNode {
     controlAction?: string;
     modelOrder?: boolean;
     controller?: string;
-    missingReference?: boolean;
+    missingReference?: [isMissing: boolean, warning: string];
 }
 
 /**

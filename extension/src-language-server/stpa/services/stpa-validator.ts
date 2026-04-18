@@ -71,7 +71,7 @@ export class StpaValidator {
     checkSafetyRequirementsForScenarios = true;
 
     /** Set of elements that are missing references. */
-    missingReferences: Set<string> = new Set(); 
+    missingReferences: Map<string, string> = new Map();
 
     /** Boolean option to toggle the check whether system components are missing feedback in the control structure. */
     checkMissingFeedback = true;
@@ -143,12 +143,14 @@ export class StpaValidator {
         const nodesToCheck = [...ucas, ...contexts];
         for (const node of nodesToCheck) {
             if (this.checkConstraintsForUCAs && !constraintsRefs.has(node.name)) {
-                accept("warning", "This element is not referenced by any controller constraint", { node: node, property: "name" });
-                    this.missingReferences.add(node.name); 
+                const warning: string = "This element is not referenced by any controller constraint";
+                accept("warning", warning, { node: node, property: "name" });
+                    this.missingReferences.set(node.name, warning); 
             }
             if (this.checkScenariosForUCAs && !scenarioRefs.includes(node.name)) {
-                accept("warning", "This element is not referenced by any scenario", { node: node, property: "name" });
-                    this.missingReferences.add(node.name); 
+                const warning: string = "This element is not referenced by any scenario";
+                accept("warning", warning, { node: node, property: "name" });
+                    this.missingReferences.set(node.name, warning); 
             }
         }
 
@@ -200,7 +202,7 @@ export class StpaValidator {
     checkThatElementsAreReferenced(
         elementsThatShouldBeReferenced: elementWithName[],
         elementsThatReference: elementWithRefs[],
-        missingElementsSet: Set<string>,
+        missingElementsSet: Map<string, string>,
         warning: string,
         accept: ValidationAcceptor,
     ): void {
@@ -208,7 +210,7 @@ export class StpaValidator {
         for (const element of elementsThatShouldBeReferenced) {
             if (!referencedElements.has(element.name)) {
                 accept("warning", warning, { node: element, property: "name" });
-                missingElementsSet.add(element.name);
+                missingElementsSet.set(element.name, warning);
             }
         }
     }
@@ -223,7 +225,7 @@ export class StpaValidator {
     protected checkControlActionsReferencedByUCA(
         nodes: Node[],
         ucaActions: string[],
-        missingElementsSet: Set<string>,
+        missingElementsSet: Map<string, string>,
         accept: ValidationAcceptor,
     ): void {
         nodes.forEach(node => {
@@ -231,11 +233,12 @@ export class StpaValidator {
                 action.comms.forEach(command => {
                     const name = node.name + "." + command.name;
                     if (!ucaActions.includes(name)) {
-                        accept("warning", "This action is not referenced by a UCA", {
+                        const warning: string = "This control action is not referenced by any UCA";
+                        accept("warning", warning, {
                             node: command,
                             property: "name",
                         });
-                        missingElementsSet.add(name);
+                        missingElementsSet.set(name, warning);
                     }
                 })
             );

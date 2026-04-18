@@ -59,7 +59,7 @@ export function createRelationshipGraph(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Set<string>,
+    missingReferences: Map<string, string>,
     highlightedIDs?: string[],
 ): ParentNode {
     const children = createRelationshipGraphChildren(filteredModel, model, idToSNode, options, idCache, missingReferences, highlightedIDs);
@@ -101,7 +101,7 @@ export function createRelationshipGraphChildren(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Set<string>,
+    missingReferences: Map<string, string>,
     highlightedIDs?: string[],
 ): SModelElement[] {
     const showDescriptions = options.getshowDescriptions();
@@ -326,7 +326,7 @@ export function generateAspectWithEdges(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Set<string>,
+    missingReferences: Map<string, string>,
     highlightedIDs?: string[],
 ): SModelElement[] {
     // node must be created first in order to access the id when creating the edges
@@ -366,7 +366,7 @@ export function generateSTPANode(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Set<string>,
+    missingReferences: Map<string, string>,
     highlightedIDs?: string[],
 ): STPANode {
     const nodeId = idCache.uniqueId(node.name.replace(/[.]/g, "_"), node);
@@ -405,11 +405,13 @@ export function generateSTPANode(
 
     if (isContext(node)) {
         // context UCAs have no description
-        const result = createSTPANode(node, nodeId, lvl, "", children, options, missingReferences?.has(node.name) ?? false);
+        const extra: [boolean, string] | undefined = missingReferences?.has(node.name) ? [true, missingReferences.get(node.name)!] : undefined;
+        const result = createSTPANode(node, nodeId, lvl, "", children, options, extra);
         idToSNode.set(nodeId, result);
         return result;
     } else {
-        const result = createSTPANode(node, nodeId, lvl, node.description, children, options, missingReferences?.has(node.name) ?? false);
+        const extra: [boolean, string] | undefined = missingReferences?.has(node.name) ? [true, missingReferences.get(node.name)!] : undefined;
+        const result = createSTPANode(node, nodeId, lvl, node.description, children, options, extra);
         idToSNode.set(nodeId, result);
         return result;
     }

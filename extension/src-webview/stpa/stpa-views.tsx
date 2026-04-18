@@ -273,6 +273,7 @@ export class STPANodeView extends RectangularNodeView {
 
         // if an STPANode has no reference, the node should be highlighted
         const missingReference = node.missingReference;
+        const missingReferenceText = missingReference?.[1];
 
         return <g
             class-print-node={printNode}
@@ -282,6 +283,7 @@ export class STPANodeView extends RectangularNodeView {
             class-mouseover={node.hoverFeedback}
             class-greyed-out={greyed}
             class-missing-reference={missingReference}>
+            {missingReferenceText ? <title>{missingReferenceText}</title> : null}
             <g class-node-selected={node.selected}>{element}</g>
             {context.renderChildren(node)}
         </g>;

@@ -53,7 +53,7 @@ export function createControlStructure(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Set<string>,
+    missingReferences: Map<string, string>,
     addMissing: boolean,
     missingFeedback?: Map<string, Node[]>
 ): ParentNode {
@@ -196,7 +196,7 @@ export function generateVerticalCSEdges(
     nodes: Node[],
     idToSNode: Map<string, SNode>,
     idCache: IdCache<AstNode>,
-    missingReferences: Set<string>,
+    missingReferences: Map<string, string>,
     addMissing: boolean,
     missingFeedback?: Map<string, Node[]>
 ): (CSNode | CSEdge)[] {
@@ -250,7 +250,7 @@ export function translateCommandsToEdges(
     edgeType: EdgeType,
     idToSNode: Map<string, SNode>,
     idCache: IdCache<AstNode>,
-    missingReferences: Set<string>,
+    missingReferences: Map<string, string>,
     addMissing: boolean,
     missingFeedback?: Map<string, Node[]>
 ): CSEdge[] {

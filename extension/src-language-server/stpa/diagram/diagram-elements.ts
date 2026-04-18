@@ -50,7 +50,7 @@ export function createSTPANode(
     description: string,
     children: SModelElement[],
     options: StpaSynthesisOptions,
-    missing?: boolean,
+    missing?: [boolean, string],
 ): STPANode {
     return {
         type: STPA_NODE_TYPE,
@@ -67,7 +67,7 @@ export function createSTPANode(
             paddingRight: 10.0,
         },
         modelOrder: options.getModelOrder(),
-        missingReference: missing ?? false,
+        missingReference: missing ? [missing?.[0], missing?.[1]] : undefined,
     };
 }
 
