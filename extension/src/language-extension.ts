@@ -25,7 +25,7 @@ import {
     acceptMessageType,
 } from "sprotty-vscode/lib/lsp";
 import * as vscode from "vscode";
-import { AddSnippetAction, GenerateSVGsAction, UpdateDiagramAction } from "./actions";
+import { AddSnippetAction, GenerateSVGsAction } from "./actions";
 import { ContextTablePanel } from "./context-table-panel";
 import { StorageService } from "./storage-service";
 import {
@@ -206,7 +206,10 @@ export class StpaLspVscodeExtension extends LspWebviewPanelManager {
             if (panel && panel.webview) {
                 panel.webview.onDidReceiveMessage(async (message: any) => {
                     const payload = message?.addRule ?? message?.action;
-                    if (!payload) return;
+                    if (!payload) 
+                        {
+                            return;
+                        }
 
                     this.languageClient.sendNotification("contextTable/addRule", {
                         sourceUri: uri.toString(),

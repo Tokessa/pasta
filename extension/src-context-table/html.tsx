@@ -130,7 +130,7 @@ export function createTHead(headers: VNode[]): VNode {
 }
 
 /**
- * Function to create a plus button for a result cell. When the button is clicked, an AddRuleAction is posted to the extension with the details of the clicked cell.
+ * Function to create a plus button for a result cell. When the button is clicked, an add rule event is posted to the extension with the details of the clicked cell.
  * @param classes The classes of the cell.
  * @param tdAttrs The attributes of the cell.
  * @param val The current cell value.

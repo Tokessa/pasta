@@ -17,7 +17,7 @@
 
 import { Table } from "@kieler/table-webview/lib/table";
 import { VNode } from "snabbdom";
-import { AddRuleAction, SendContextTableDataAction } from "./actions";
+import { SendContextTableDataAction } from "./actions";
 import { createResults, determineUsedRules } from "./context-table-logic";
 import "./css/table.css";
 import { createHeaderElement, createHeaderRow, createRow, createTable, createTHead, initContextTable, patch } from "./html";
@@ -29,13 +29,11 @@ import {
     replaceSelector,
 } from "./utils";
 import { ContextTableControlAction, ContextTableRule, ContextTableSystemVariables, ContextTableVariable, ContextTableVariableValues, Row, Type, ContextCell } from './utils-classes';
-import { ActionHandlerRegistry, IActionHandlerInitializer, ICommand } from "sprotty";
-import { Action } from "sprotty-protocol";
 
 declare const vscode: { postMessage(message: any): void };
 
 
-export class ContextTable extends Table implements IActionHandlerInitializer {
+export class ContextTable extends Table {
     /** Ids for the html elements */
     protected actionSelectorId = "select_action";
     protected typeSelectorId = "select_type";
@@ -85,19 +83,6 @@ export class ContextTable extends Table implements IActionHandlerInitializer {
     }
 
     protected __mergeListenersInitialized = false;
-
-    // actions that are dispatched
-    initialize(registry: ActionHandlerRegistry): void {
-        registry.register(AddRuleAction.KIND, this);
-    }
-
-    handle(action: Action): void | Action | ICommand {
-        if (AddRuleAction.isThisAction(action)) {
-            vscode.postMessage({ action: action });
-            return;
-        }
-        return;
-    }
 
     // communication between extension host -> webview
     protected handleMessages(message: any): void {

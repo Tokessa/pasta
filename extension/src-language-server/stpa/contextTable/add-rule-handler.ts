@@ -88,7 +88,10 @@ export async function insertRuleFromContextTable(
                 if (Array.isArray(r.contexts)) {
                     for (const context of r.contexts) {
                         const contextEnd = context?.$cstNode?.range?.end;
-                        if (!contextEnd) continue;
+                        if (!contextEnd) 
+                            { 
+                                continue;
+                            }
 
                         if (
                             !latestMatchingContextEnd ||

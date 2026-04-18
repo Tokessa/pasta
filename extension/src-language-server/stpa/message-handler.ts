@@ -28,7 +28,7 @@ import { generateLTLFormulae } from "./modelChecking/model-checking.js";
 import { createResultData } from "./result-report/result-generator.js";
 import { StpaServices } from "./stpa-module.js";
 import { getControlActions } from "./utils.js";
-import { insertRuleFromContextTable } from "./contextTable/add-rule-handler.js"
+import { insertRuleFromContextTable } from "./contextTable/add-rule-handler.js";
 
 let lastUri: URI;
 
@@ -47,7 +47,7 @@ export function addSTPANotificationHandler(
     stpaServices: StpaServices,
     sharedServices: LangiumSprottySharedServices
 ): void {
-    addContextTableHandler(connection, stpaServices, sharedServices);
+    addContextTableHandler(connection, stpaServices);
     addTextChangeHandler(connection, stpaServices, sharedServices);
     addVerificationHandler(connection, sharedServices);
     addResultHandler(connection, sharedServices);
@@ -59,7 +59,7 @@ export function addSTPANotificationHandler(
  * @param connection
  * @param stpaServices
  */
-function addContextTableHandler(connection: Connection, stpaServices: StpaServices, sharedServices: LangiumSprottySharedServices): void {
+function addContextTableHandler(connection: Connection, stpaServices: StpaServices): void {
     // the data needed to create the context table is requested
     connection.onNotification("contextTable/getData", async uri => {
         // data is computed and send back to the extension

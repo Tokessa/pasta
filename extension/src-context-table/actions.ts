@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
-import { ContextTableControlAction, ContextTableData } from "./utils-classes";
+import { ContextTableData } from "./utils-classes";
 
 interface Action {
     kind: string;

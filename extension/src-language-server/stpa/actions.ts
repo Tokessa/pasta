@@ -16,7 +16,6 @@
  */
 
 import { Action, JsonMap, RequestAction, generateRequestId, ResponseAction } from "sprotty-protocol";
-import { ContextTableControlAction } from "./contextTable/utils-classes.js";
 
 /** Send to server to generate SVGs for the STPA result report */
 export interface GenerateSVGsAction extends Action {
