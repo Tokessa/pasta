@@ -36,7 +36,7 @@ export interface STPANode extends SNode {
     controlAction?: string;
     modelOrder?: boolean;
     controller?: string;
-    missingReference?: [isMissing: boolean, warning: string];
+    missingReference?: string[];
 }
 
 /**
@@ -75,7 +75,8 @@ export interface CSEdge extends SEdge {
 
 /**
  * Label in control structure for missing references of control actions.
+ * @param missingReference Indicator if an control action has missing references. List of warning messages for the missing reference(s).
  */
 export interface CSLabel extends SLabel {
-    missingReference?: boolean;
+    missingReference?: string[];
 }

@@ -171,14 +171,14 @@ export class StpaDiagramGenerator extends SnippetGraphGenerator {
                     this.idToSNode,
                     this.options,
                     this.idCache,
-                    this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Map<string, string>(),
+                    this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Map<string, string[]>(),
                     this.options.getShowUnclosedFeedbackLoopsOption(),
                     this.services.validation.StpaValidator.missingFeedback
                 )
             );
         }
         // add relationship graph to roots children
-        rootChildren.push(createRelationshipGraph(filteredModel, model, this.idToSNode, this.options, this.idCache, this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Map<string, string>(), highlightedIDs ?? [],));
+        rootChildren.push(createRelationshipGraph(filteredModel, model, this.idToSNode, this.options, this.idCache, this.options.getShowMissingReferencesOption() ? this.services.validation.StpaValidator.missingReferences : new Map<string, string[]>(), highlightedIDs ?? [],));
         // return root
         return {
             type: "graph",

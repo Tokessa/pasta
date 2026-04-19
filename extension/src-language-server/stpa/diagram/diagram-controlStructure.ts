@@ -43,7 +43,7 @@ import { getCommonAncestor, sortPorts } from "./utils.js";
  * @param idToSNode The map of IDs to SNodes.
  * @param options The synthesis options of the STPA model.
  * @param idCache The ID cache of the STPA model.
- * @param missingReferences The Set of elements with missing references.
+ * @param missingReferences The Map of elements with missing references with their warning messages.
  * @param addMissing Whether missing feedback should be added to the control structure.
  * @param missingFeedback The missing feedbacks of the control structure.
  * @returns the generated control structure diagram.
@@ -53,7 +53,7 @@ export function createControlStructure(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Map<string, string>,
+    missingReferences: Map<string, string[]>,
     addMissing: boolean,
     missingFeedback?: Map<string, Node[]>
 ): ParentNode {
@@ -187,7 +187,7 @@ export function createProcessModelNode(variables: Variable[], idCache: IdCache<A
  * Creates the edges for the control structure.
  * @param nodes The nodes of the control structure.
  * @param idCache The ID cache of the STPA model.
- * @param missingReferences The Set of elements with missing references.
+ * @param missingReferences The Map of elements with missing references with their warning messages.
  * @param addMissing Whether missing feedback should be added to the control structure.
  * @param missingFeedback The missing feedbacks of the control structure.
  * @returns A list of edges for the control structure.
@@ -196,7 +196,7 @@ export function generateVerticalCSEdges(
     nodes: Node[],
     idToSNode: Map<string, SNode>,
     idCache: IdCache<AstNode>,
-    missingReferences: Map<string, string>,
+    missingReferences: Map<string, string[]>,
     addMissing: boolean,
     missingFeedback?: Map<string, Node[]>
 ): (CSNode | CSEdge)[] {
@@ -239,7 +239,7 @@ export function generateVerticalCSEdges(
  * @param edgeType The type of the edge (control action or feedback).
  * @param idToSNode The map of IDs to SNodes.
  * @param idCache The ID cache of the STPA model.
- * @param missingReferences The Set of elements with missing references.
+ * @param missingReferences The Map of elements with missing references with their warning messages.
  * @param addMissing Whether missing feedback should be added to the control structure.
  * @param missingFeedback The missing feedbacks of the control structure.
  * @returns A list of edges representing the commands that should be added at the top level.
@@ -250,7 +250,7 @@ export function translateCommandsToEdges(
     edgeType: EdgeType,
     idToSNode: Map<string, SNode>,
     idCache: IdCache<AstNode>,
-    missingReferences: Map<string, string>,
+    missingReferences: Map<string, string[]>,
     addMissing: boolean,
     missingFeedback?: Map<string, Node[]>
 ): CSEdge[] {
@@ -268,7 +268,7 @@ export function translateCommandsToEdges(
         if (target) {
             // multiple commands to same target is represented by one edge -> combine labels to one
             const label = edge.comms.map(com => com.label);
-            const isReferenceMissing = controlActions.map(ca => missingReferences.has(ca));
+            const isReferenceMissing: [boolean, string[]][] = controlActions.map(ca => [missingReferences.has(ca), missingReferences.get(ca) ?? []]);
 
             createEdgeForCommand(source, target, edgeId, edgeType, label, idToSNode, idCache, edges, controlActions, isReferenceMissing);
         }
@@ -316,7 +316,7 @@ export function translateCommandsToEdges(
  * @param idCache The ID cache of the STPA model.
  * @param edges The list of edges to add the created edges to.
  * @param controlActions [optional] List of all the control actions with source from one CSEdge.
- * @param isReferenceMissing [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not.
+ * @param isReferenceMissing [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not. List of warning messages for the missing reference(s) for each control action.
  */
 export function createEdgeForCommand(
     source: Node,
@@ -328,7 +328,7 @@ export function createEdgeForCommand(
     idCache: IdCache<AstNode>,
     edges: CSEdge[],
     controlActions?: string[],
-    isReferenceMissing?: boolean[],
+    isReferenceMissing?: [boolean, string[]][],
 ): void {
     // edges can be hierachy crossing so we must determine the common ancestor of source and target
     const commonAncestor = getCommonAncestor(source, target);

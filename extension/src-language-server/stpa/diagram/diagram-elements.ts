@@ -40,7 +40,7 @@ import { getAspect } from "./utils.js";
  * @param nodeId The ID of the STPANode.
  * @param lvl The hierarchy level of the STPANode.
  * @param children The children of the STPANode.
- * @param missing [optional] Determines whether the node for which the STPANode should be created has a missing reference or not.
+ * @param missing [optional] Indicates whether the node, for which the STPANode should be created, has a missing reference or not. List of warnings for the missing reference.
  * @returns an STPANode.
  */
 export function createSTPANode(
@@ -50,7 +50,7 @@ export function createSTPANode(
     description: string,
     children: SModelElement[],
     options: StpaSynthesisOptions,
-    missing?: [boolean, string],
+    missing?: string[],
 ): STPANode {
     return {
         type: STPA_NODE_TYPE,
@@ -67,7 +67,7 @@ export function createSTPANode(
             paddingRight: 10.0,
         },
         modelOrder: options.getModelOrder(),
-        missingReference: missing ? [missing?.[0], missing?.[1]] : undefined,
+        missingReference: missing ? missing : undefined,
     };
 }
 
@@ -124,7 +124,7 @@ export function createSTPAEdge(
  * @param edgeType The type of the edge (control action or feedback edge).
  * @param idCache The ID cache of the STPA model.
  * @param controlActions [optional] List of all the control actions with source from one CSEdge.
- * @param isReferenceMissing [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not.
+ * @param missingReference [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not. List of warning messages for the missing reference(s) for each control action.
  * @returns A control structure edge.
  */
 export function createControlStructureEdge(
@@ -137,7 +137,7 @@ export function createControlStructureEdge(
     idCache: IdCache<AstNode>,
     dummyLabel: boolean = true,
     controlActions?: string[],
-    isReferenceMissing?: boolean[],
+    missingReference?: [boolean, string[]][],
 ): CSEdge {
     return {
         type: sedgeType,
@@ -145,7 +145,7 @@ export function createControlStructureEdge(
         sourceId: sourceId!,
         targetId: targetId!,
         edgeType: edgeType,
-        children: createLabel(label, edgeId, idCache, EDGE_LABEL_TYPE, dummyLabel, controlActions, isReferenceMissing), 
+        children: createLabel(label, edgeId, idCache, EDGE_LABEL_TYPE, dummyLabel, controlActions, missingReference), 
     };
 }
 
@@ -197,7 +197,7 @@ export function createInvisibleProcessModelEdge(
  * @param type The type of the label.
  * @param dummyLabel Determines whether a dummy label should be created to get a correct layout.
  * @param controlActions [optional] List of all the control actions with source from one CSEdge.
- * @param isReferenceMissing [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not.
+ * @param isReferenceMissing [optional] List of booleans indicating for each control action in {@code controlActions} whether it is missing a reference or not. List of warning messages for the missing reference(s) for each control action.
  * @returns SLabel elements representing {@code label}.
  */
 export function createLabel(
@@ -207,7 +207,7 @@ export function createLabel(
     type: string,
     dummyLabel: boolean = true,
     controlActions?: string[],
-    isReferenceMissing?: boolean[],
+    missingReference?: [boolean, string[]][],
 ): CSLabel[] {
     const children: CSLabel[] = [];
     if (label.find(l => l !== "")) {
@@ -217,7 +217,7 @@ export function createLabel(
                 id: idCache.uniqueId(id + "_label"),
                 text: l,
                 controlAction: controlActions?.[index] ?? "",
-                isReferenceMissing: isReferenceMissing ? isReferenceMissing[index] : false,
+                missingReference: missingReference?.[index]?.[0] !== false ? missingReference?.[index]?.[1] : undefined,
             } as CSLabel); 
         });
     } else if (dummyLabel) {

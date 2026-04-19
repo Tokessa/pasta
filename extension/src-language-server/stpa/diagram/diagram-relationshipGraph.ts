@@ -49,7 +49,7 @@ import {
  * @param idToSNode The map of the generated IDs to their generated SNodes.
  * @param options The synthesis options of the STPA model.
  * @param idCache The ID cache of the STPA model.
- * @param missingReferences The Set of elements with missing references.
+ * @param missingReferences The Map of elements with missing references with their warning messages.
  * @param highlightedIDs [optional] List of node and edge IDs that are currently highlighted
  * @returns the relationship graph for the STPA model.
  */
@@ -59,7 +59,7 @@ export function createRelationshipGraph(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Map<string, string>,
+    missingReferences: Map<string, string[]>,
     highlightedIDs?: string[],
 ): ParentNode {
     const children = createRelationshipGraphChildren(filteredModel, model, idToSNode, options, idCache, missingReferences, highlightedIDs);
@@ -91,7 +91,7 @@ export function createRelationshipGraph(
  * @param idToSNode The map of the generated IDs to their generated SNodes.
  * @param options The synthesis options of the STPA model.
  * @param idCache The ID cache of the STPA model.
- * @param missingReferences The Set of elements with missing references.
+ * @param missingReferences The Map of elements with missing references with their warning messages.
  * @param highlightedIDs [optional] List of node and edge IDs that are currently highlighted
  * @returns the children of the relationship graph.
  */
@@ -101,7 +101,7 @@ export function createRelationshipGraphChildren(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Map<string, string>,
+    missingReferences: Map<string, string[]>,
     highlightedIDs?: string[],
 ): SModelElement[] {
     const showDescriptions = options.getshowDescriptions();
@@ -316,7 +316,7 @@ function showDescriptionOfAspect(
  * Generates a node and the edges for the given {@code node}.
  * @param node STPA component for which a node and edges should be generated.
  * @param idCache The ID cache of the STPA model.
- * @param missingReferences The Set of elements with missing references.
+ * @param missingReferences The Map of elements with missing references with their warning messages.
  * @param highlightedIDs [optional] List of node and edge IDs that are currently highlighted
  * @returns A node representing {@code node} and edges representing the references {@code node} contains.
  */
@@ -326,7 +326,7 @@ export function generateAspectWithEdges(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Map<string, string>,
+    missingReferences: Map<string, string[]>,
     highlightedIDs?: string[],
 ): SModelElement[] {
     // node must be created first in order to access the id when creating the edges
@@ -356,7 +356,7 @@ export function generateAspectWithEdges(
  * Generates a single STPANode for the given {@code node}.
  * @param node The STPA component the node should be created for.
  * @param idCache The ID cache of the STPA model.
- * @param missingReferences The Set of elements with missing references.
+ * @param missingReferences The Map of elements with missing references with their warning messages.
  * @param highlightedIDs [optional] List of node and edge IDs that are currently highlighted
  * @returns A STPANode representing {@code node}.
  */
@@ -366,7 +366,7 @@ export function generateSTPANode(
     idToSNode: Map<string, SNode>,
     options: StpaSynthesisOptions,
     idCache: IdCache<AstNode>,
-    missingReferences: Map<string, string>,
+    missingReferences: Map<string, string[]>,
     highlightedIDs?: string[],
 ): STPANode {
     const nodeId = idCache.uniqueId(node.name.replace(/[.]/g, "_"), node);
@@ -405,12 +405,12 @@ export function generateSTPANode(
 
     if (isContext(node)) {
         // context UCAs have no description
-        const extra: [boolean, string] | undefined = missingReferences?.has(node.name) ? [true, missingReferences.get(node.name)!] : undefined;
+        const extra: string[] | undefined = missingReferences?.has(node.name) ? missingReferences.get(node.name)! : undefined;
         const result = createSTPANode(node, nodeId, lvl, "", children, options, extra);
         idToSNode.set(nodeId, result);
         return result;
     } else {
-        const extra: [boolean, string] | undefined = missingReferences?.has(node.name) ? [true, missingReferences.get(node.name)!] : undefined;
+        const extra: string[] | undefined = missingReferences?.has(node.name) ? missingReferences.get(node.name)! : undefined;
         const result = createSTPANode(node, nodeId, lvl, node.description, children, options, extra);
         idToSNode.set(nodeId, result);
         return result;

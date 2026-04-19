@@ -271,9 +271,8 @@ export class STPANodeView extends RectangularNodeView {
         // if an STPANode is selected, the components not connected to it should fade out
         const greyed = highlighting && !node.highlight;
 
-        // if an STPANode has no reference, the node should be highlighted
+        // if an STPANode has no reference, the node should be highlighted and a tooltip should show the missing reference(s)
         const missingReference = node.missingReference;
-        const missingReferenceText = missingReference?.[1];
 
         return <g
             class-print-node={printNode}
@@ -283,7 +282,7 @@ export class STPANodeView extends RectangularNodeView {
             class-mouseover={node.hoverFeedback}
             class-greyed-out={greyed}
             class-missing-reference={missingReference}>
-            {missingReferenceText ? <title>{missingReferenceText}</title> : null}
+            {missingReference ? <title>{missingReference.join('\n')}</title> : null}  
             <g class-node-selected={node.selected}>{element}</g>
             {context.renderChildren(node)}
         </g>;
@@ -424,16 +423,18 @@ export class EdgeLabelView extends SLabelView {
         // label belongs to an edge which may be a missing feedback edge
         const edgeMissingFeedback = (label.parent.type === CS_EDGE_TYPE || label.parent.type === CS_INTERMEDIATE_EDGE_TYPE) && (label.parent as CSEdge).edgeType === EdgeType.MISSING_FEEDBACK;
         const missingFeedbackLabel = nodeMissingFeedback || edgeMissingFeedback;
-        const missingReference = label.isReferenceMissing;
+        // label belongs to an edge which may have a missing reference
+        const missingReference = label.missingReference;
 
         const vnode = super.render(label, context);
         if (vnode?.data?.class) {
             vnode.data.class['missing-feedback-label'] = missingFeedbackLabel ?? false;
-            vnode.data.class['missing-reference-label'] = missingReference ?? false;
+            vnode.data.class['missing-reference-label'] = !!missingReference?.length;
         }
         // add a background to the label to make it better readable
         const background = renderRectangle(0, 2-label.bounds.height, label.bounds.width, label.bounds.height);
         return <g>
+            {missingReference ? <title>{missingReference.join('\n')}</title> : null} 
             <g class-label-background={true}>{background}</g>
             {vnode}
         </g>;

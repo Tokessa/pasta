@@ -70,8 +70,8 @@ export class StpaValidator {
     /** Boolean option to toggle the check whether all scenarios are covered by safety requirements. */
     checkSafetyRequirementsForScenarios = true;
 
-    /** Set of elements that are missing references. */
-    missingReferences: Map<string, string> = new Map();
+    /** Maps elements that are missing references to their warning messages. */
+    missingReferences: Map<string, string[]> = new Map();
 
     /** Boolean option to toggle the check whether system components are missing feedback in the control structure. */
     checkMissingFeedback = true;
@@ -145,12 +145,12 @@ export class StpaValidator {
             if (this.checkConstraintsForUCAs && !constraintsRefs.has(node.name)) {
                 const warning: string = "This element is not referenced by any controller constraint";
                 accept("warning", warning, { node: node, property: "name" });
-                    this.missingReferences.set(node.name, warning); 
+                    this.missingReferences.set(node.name, [...(this.missingReferences.get(node.name) ?? []), warning]); 
             }
             if (this.checkScenariosForUCAs && !scenarioRefs.includes(node.name)) {
                 const warning: string = "This element is not referenced by any scenario";
                 accept("warning", warning, { node: node, property: "name" });
-                    this.missingReferences.set(node.name, warning); 
+                    this.missingReferences.set(node.name, [...(this.missingReferences.get(node.name) ?? []), warning]); 
             }
         }
 
@@ -195,14 +195,14 @@ export class StpaValidator {
      * If not, a warning is issued.
      * @param elementsThatShouldBeReferenced The elements that should be referenced.
      * @param elementsThatReference The elements that should reference the elements of the first list.
-     * @param missingElementsSet The set to which the missing elements will be added.
+     * @param missingElementsMap The map to which the missing elements with their warning messages will be added.
      * @param warning The warning message to issue if an element is not referenced.
      * @param accept 
      */
     checkThatElementsAreReferenced(
         elementsThatShouldBeReferenced: elementWithName[],
         elementsThatReference: elementWithRefs[],
-        missingElementsSet: Map<string, string>,
+        missingElementsMap: Map<string, string[]>,
         warning: string,
         accept: ValidationAcceptor,
     ): void {
@@ -210,7 +210,7 @@ export class StpaValidator {
         for (const element of elementsThatShouldBeReferenced) {
             if (!referencedElements.has(element.name)) {
                 accept("warning", warning, { node: element, property: "name" });
-                missingElementsSet.set(element.name, warning);
+                missingElementsMap.set(element.name, [...(missingElementsMap.get(element.name) ?? []), warning]);
             }
         }
     }
@@ -219,13 +219,13 @@ export class StpaValidator {
      * Check whether the control actions of a node are referenced by at least one UCA.
      * @param nodes The nodes to check.
      * @param ucaActions The control actions that are referenced by a UCA.
-     * @param missingElementsSet The set to which the missing elements will be added.
+     * @param missingElementsMap The map to which the missing elements with their warning messages will be added.
      * @param accept
      */
     protected checkControlActionsReferencedByUCA(
         nodes: Node[],
         ucaActions: string[],
-        missingElementsSet: Map<string, string>,
+        missingElementsMap: Map<string, string[]>,
         accept: ValidationAcceptor,
     ): void {
         nodes.forEach(node => {
@@ -238,11 +238,11 @@ export class StpaValidator {
                             node: command,
                             property: "name",
                         });
-                        missingElementsSet.set(name, warning);
+                        missingElementsMap.set(name, [...(missingElementsMap.get(name) ?? []), warning]);
                     }
                 })
             );
-            this.checkControlActionsReferencedByUCA(node.children, ucaActions, missingElementsSet, accept);
+            this.checkControlActionsReferencedByUCA(node.children, ucaActions, missingElementsMap, accept);
         });
     }
 
