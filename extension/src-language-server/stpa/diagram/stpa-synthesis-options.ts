@@ -551,7 +551,7 @@ const showUnclosedFeedbackLoopsOption: ValuedSynthesisOption = {
 /**
  * Boolean option to toggle the visualization of missing references in the diagram.
  */
-const showmissingReferencesOption: ValuedSynthesisOption = {
+const showMissingReferencesOption: ValuedSynthesisOption = {
     synthesisOption: {
         id: showMissingReferencesID,
         name: "Missing References",
@@ -605,7 +605,7 @@ export class StpaSynthesisOptions extends SynthesisOptions {
                 showControlStructureOption,
                 showProcessModelsOption,
                 showUnclosedFeedbackLoopsOption,
-                showmissingReferencesOption,
+                showMissingReferencesOption,
                 showRelationshipGraphOption,
                 showSysConsOption,
                 showRespsOption,
